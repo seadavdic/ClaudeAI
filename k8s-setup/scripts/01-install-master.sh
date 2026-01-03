@@ -33,6 +33,15 @@ fi
 echo "✓ Prerequisites verified"
 echo ""
 
+# Detect active network interface
+echo "Detecting network interface..."
+ACTIVE_IFACE=$(ip route | grep default | awk '{print $5}' | head -n1)
+if [ -z "$ACTIVE_IFACE" ]; then
+    # Fallback: find interface with IP assigned
+    ACTIVE_IFACE=$(ip -o -4 addr show | grep -v "127.0.0.1" | awk '{print $2}' | head -n1)
+fi
+echo "Detected active interface: $ACTIVE_IFACE"
+
 # Get master node IP
 MASTER_IP=$(hostname -I | awk '{print $1}')
 echo "Detected Master IP: $MASTER_IP"
@@ -46,7 +55,8 @@ echo ""
 # Install k3s on master
 echo "[1/3] Installing k3s on master node..."
 echo "This may take several minutes..."
-curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --bind-address=$MASTER_IP --advertise-address=$MASTER_IP --node-ip=$MASTER_IP --flannel-iface=eth0" sh -
+echo "Using network interface: $ACTIVE_IFACE"
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --bind-address=$MASTER_IP --advertise-address=$MASTER_IP --node-ip=$MASTER_IP --flannel-iface=$ACTIVE_IFACE" sh -
 
 # Wait for k3s to be ready
 echo ""

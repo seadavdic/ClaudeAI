@@ -62,10 +62,21 @@ else
 fi
 echo ""
 
+# Detect active network interface
+echo "Detecting network interface..."
+ACTIVE_IFACE=$(ip route | grep default | awk '{print $5}' | head -n1)
+if [ -z "$ACTIVE_IFACE" ]; then
+    # Fallback: find interface with IP assigned
+    ACTIVE_IFACE=$(ip -o -4 addr show | grep -v "127.0.0.1" | awk '{print $2}' | head -n1)
+fi
+echo "Detected active interface: $ACTIVE_IFACE"
+echo ""
+
 # Install k3s agent
 echo "[2/3] Installing k3s agent and joining cluster..."
 echo "This may take several minutes..."
-curl -sfL https://get.k3s.io | K3S_URL="https://${MASTER_IP}:6443" K3S_TOKEN="$NODE_TOKEN" sh -
+echo "Using network interface: $ACTIVE_IFACE"
+curl -sfL https://get.k3s.io | K3S_URL="https://${MASTER_IP}:6443" K3S_TOKEN="$NODE_TOKEN" K3S_NODE_NAME=$(hostname) sh -
 
 # Wait for k3s-agent to be ready
 echo ""
