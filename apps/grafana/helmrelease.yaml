@@ -11,7 +11,6 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: grafana
-      version: '11.3.0'
   targetNamespace: grafana
   install:
     createNamespace: true
