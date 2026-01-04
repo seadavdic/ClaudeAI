@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: cloudflared
-        image: cloudflare/cloudflared:2024.8.3-arm32v7
+        image: erisamoe/cloudflared:latest
         args:
         - tunnel
         - --url
