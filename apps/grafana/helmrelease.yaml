@@ -1,0 +1,21 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: grafana
+  namespace: flux-system
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: grafana
+      sourceRef:
+        kind: HelmRepository
+        name: grafana
+      version: '11.3.0'
+  targetNamespace: grafana
+  install:
+    createNamespace: true
+  values:
+    service:
+      type: ClusterIP
+      port: 80
