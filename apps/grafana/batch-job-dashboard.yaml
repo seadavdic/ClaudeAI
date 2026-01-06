@@ -1,0 +1,203 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-batchjob-dashboard
+  namespace: grafana
+  labels:
+    grafana_dashboard: "1"
+data:
+  batch-job-monitoring.json: |
+    {
+      "title": "Batch Job Monitoring",
+      "tags": ["batch-job", "cronjob", "loki"],
+      "timezone": "browser",
+      "schemaVersion": 16,
+      "version": 1,
+      "refresh": "1m",
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "Current Success Rate",
+          "type": "gauge",
+          "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0},
+          "targets": [
+            {
+              "expr": "avg_over_time({namespace=\"batch-job\"} | json | success_rate != \"\" | unwrap success_rate [1h])",
+              "refId": "A",
+              "datasource": {"type": "loki", "uid": "Loki"}
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"value": 0, "color": "red"},
+                  {"value": 80, "color": "yellow"},
+                  {"value": 95, "color": "green"}
+                ]
+              },
+              "unit": "percent",
+              "min": 0,
+              "max": 100
+            }
+          }
+        },
+        {
+          "id": 2,
+          "title": "Records Processed Per Run",
+          "type": "stat",
+          "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0},
+          "targets": [
+            {
+              "expr": "avg_over_time({namespace=\"batch-job\"} | json | processed_count != \"\" | unwrap processed_count [1h])",
+              "refId": "A",
+              "datasource": {"type": "loki", "uid": "Loki"}
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"value": 0, "color": "green"}
+                ]
+              },
+              "unit": "short"
+            }
+          },
+          "options": {
+            "graphMode": "area"
+          }
+        },
+        {
+          "id": 3,
+          "title": "Failed Records",
+          "type": "stat",
+          "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0},
+          "targets": [
+            {
+              "expr": "sum_over_time({namespace=\"batch-job\"} | json | failed_count != \"\" | unwrap failed_count [1h])",
+              "refId": "A",
+              "datasource": {"type": "loki", "uid": "Loki"}
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"value": 0, "color": "green"},
+                  {"value": 10, "color": "yellow"},
+                  {"value": 50, "color": "red"}
+                ]
+              }
+            }
+          },
+          "options": {
+            "graphMode": "area",
+            "colorMode": "background"
+          }
+        },
+        {
+          "id": 4,
+          "title": "Job Duration (ms)",
+          "type": "stat",
+          "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0},
+          "targets": [
+            {
+              "expr": "avg_over_time({namespace=\"batch-job\"} | json | message=\"Batch job completed\" | unwrap duration_ms [1h])",
+              "refId": "A",
+              "datasource": {"type": "loki", "uid": "Loki"}
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"value": 0, "color": "green"},
+                  {"value": 5000, "color": "yellow"},
+                  {"value": 10000, "color": "red"}
+                ]
+              },
+              "unit": "ms"
+            }
+          }
+        },
+        {
+          "id": 5,
+          "title": "Success Rate Over Time",
+          "type": "timeseries",
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 8},
+          "targets": [
+            {
+              "expr": "{namespace=\"batch-job\"} | json | success_rate != \"\" | unwrap success_rate",
+              "refId": "A",
+              "datasource": {"type": "loki", "uid": "Loki"},
+              "legendFormat": "Success Rate %"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {"lineWidth": 2, "fillOpacity": 20},
+              "unit": "percent",
+              "min": 0,
+              "max": 100
+            }
+          }
+        },
+        {
+          "id": 6,
+          "title": "Job Completion Logs",
+          "type": "logs",
+          "gridPos": {"h": 10, "w": 12, "x": 0, "y": 18},
+          "targets": [
+            {
+              "expr": "{namespace=\"batch-job\"} | json | message=\"Batch job completed\"",
+              "refId": "A",
+              "datasource": {"type": "loki", "uid": "Loki"}
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "showLabels": false,
+            "wrapLogMessage": true,
+            "prettifyLogMessage": true,
+            "sortOrder": "Descending"
+          }
+        },
+        {
+          "id": 7,
+          "title": "Batch Job Errors & Warnings",
+          "type": "logs",
+          "gridPos": {"h": 10, "w": 12, "x": 12, "y": 18},
+          "targets": [
+            {
+              "expr": "{namespace=\"batch-job\"} | json | level=~\"ERROR|WARNING|CRITICAL\"",
+              "refId": "A",
+              "datasource": {"type": "loki", "uid": "Loki"}
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "wrapLogMessage": true,
+            "prettifyLogMessage": true,
+            "sortOrder": "Descending"
+          }
+        }
+      ],
+      "timepicker": {
+        "refresh_intervals": ["30s", "1m", "5m", "15m"]
+      }
+    }
