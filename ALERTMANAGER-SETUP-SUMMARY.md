@@ -53,18 +53,19 @@ Three groups of alert rules configured:
 - **Deployment**: DaemonSet (runs on every node)
 
 ### 5. **Grafana Dashboard: "Raspberry Pi Cluster Monitoring"**
-New dashboard with 10 panels:
+New dashboard with 9 panels:
 
-1. **CPU Usage by Node** - Time series showing CPU% for each Pi
+1. **CPU Usage by Node** - Time series showing CPU% for each Pi (displays node names)
 2. **Memory Usage by Node** - Time series with thresholds (yellow @ 75%, red @ 85%)
 3. **CPU Temperature** - Gauge showing current temperature per node
 4. **Disk Usage** - Gauge showing disk space used
 5. **Network Traffic (Receive)** - Time series of incoming network traffic
 6. **Network Traffic (Transmit)** - Time series of outgoing network traffic
 7. **System Load** - Time series showing 1m, 5m, 15m load averages
-8. **Node Status** - Shows which nodes are UP/DOWN
-9. **Uptime** - How long each node has been running
-10. **Active Alerts** - Shows currently firing alerts
+8. **Uptime** - How long each node has been running
+9. **Active Alerts** - Shows currently firing alerts (count)
+
+**Note**: All panels display node names (k3s-master, k3s-worker-1) instead of IP addresses for better readability.
 
 **Auto-refresh**: 30 seconds
 **Time range**: Last 1 hour
