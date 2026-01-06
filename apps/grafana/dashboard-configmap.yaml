@@ -807,37 +807,100 @@ data:
         {
           "id": 8,
           "title": "Node Status",
-          "type": "stat",
+          "type": "table",
           "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
           "targets": [
             {
               "expr": "up{service=~\".*node-exporter.*\"}",
               "refId": "A",
               "datasource": {"type": "prometheus", "uid": "Prometheus"},
-              "legendFormat": "{{node}}"
+              "legendFormat": "{{node}}",
+              "format": "table",
+              "instant": true
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "color": {"mode": "thresholds"},
-              "mappings": [
-                {"type": "value", "value": "0", "text": "DOWN"},
-                {"type": "value", "value": "1", "text": "UP"}
-              ],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {"value": 0, "color": "red"},
-                  {"value": 1, "color": "green"}
+              "custom": {
+                "align": "center",
+                "width": 100
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "Value"},
+                "properties": [
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {"type": "value", "value": "0", "text": "DOWN"},
+                      {"type": "value", "value": "1", "text": "UP"}
+                    ]
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-background",
+                      "mode": "basic"
+                    }
+                  },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {"value": 0, "color": "red"},
+                        {"value": 1, "color": "green"}
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Time"},
+                "properties": [
+                  {
+                    "id": "custom.hidden",
+                    "value": true
+                  }
                 ]
               }
-            }
+            ]
           },
           "options": {
-            "colorMode": "background",
-            "graphMode": "none",
-            "textMode": "value_and_name"
-          }
+            "showHeader": true,
+            "footer": {
+              "show": false
+            }
+          },
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "__name__": true,
+                  "app_kubernetes_io_component": true,
+                  "app_kubernetes_io_instance": true,
+                  "app_kubernetes_io_managed_by": true,
+                  "app_kubernetes_io_name": true,
+                  "app_kubernetes_io_part_of": true,
+                  "app_kubernetes_io_version": true,
+                  "helm_sh_chart": true,
+                  "helm_toolkit_fluxcd_io_name": true,
+                  "helm_toolkit_fluxcd_io_namespace": true,
+                  "instance": true,
+                  "job": true,
+                  "namespace": true,
+                  "service": true
+                },
+                "renameByName": {
+                  "node": "Node",
+                  "Value": "Status"
+                }
+              }
+            }
+          ]
         },
         {
           "id": 9,
