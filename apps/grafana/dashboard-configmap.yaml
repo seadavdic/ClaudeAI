@@ -359,3 +359,218 @@ data:
         }
       ]
     }
+  observability-complete.json: |
+    {
+      "title": "Complete Observability Dashboard",
+      "tags": ["loki", "prometheus", "logs", "metrics"],
+      "timezone": "browser",
+      "schemaVersion": 16,
+      "version": 1,
+      "refresh": "10s",
+      "time": {
+        "from": "now-15m",
+        "to": "now"
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "Error Rate (Logs)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+          "targets": [
+            {
+              "expr": "sum by(namespace) (rate({namespace=~\"log-generator|rest-api|batch-job\"} | json | level=\"ERROR\" [5m]))",
+              "refId": "A",
+              "datasource": {"type": "loki", "uid": "Loki"},
+              "legendFormat": "{{namespace}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {"lineWidth": 2, "fillOpacity": 10},
+              "unit": "reqps"
+            }
+          }
+        },
+        {
+          "id": 2,
+          "title": "Log Volume by Level",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+          "targets": [
+            {
+              "expr": "sum by(level) (count_over_time({namespace=~\"log-generator|rest-api|batch-job\"} | json [5m]))",
+              "refId": "A",
+              "datasource": {"type": "loki", "uid": "Loki"},
+              "legendFormat": "{{level}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {"lineWidth": 2, "fillOpacity": 20, "stacking": {"mode": "normal"}}
+            },
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "ERROR"},
+                "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "WARNING"},
+                "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "orange"}}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "INFO"},
+                "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "green"}}]
+              }
+            ]
+          }
+        },
+        {
+          "id": 3,
+          "title": "Recent ERROR Logs",
+          "type": "logs",
+          "gridPos": {"h": 10, "w": 12, "x": 0, "y": 8},
+          "targets": [
+            {
+              "expr": "{namespace=~\"log-generator|rest-api|batch-job\"} | json | level=\"ERROR\"",
+              "refId": "A",
+              "datasource": {"type": "loki", "uid": "Loki"}
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "wrapLogMessage": true,
+            "prettifyLogMessage": true,
+            "sortOrder": "Descending"
+          }
+        },
+        {
+          "id": 4,
+          "title": "Recent WARNING Logs",
+          "type": "logs",
+          "gridPos": {"h": 10, "w": 12, "x": 12, "y": 8},
+          "targets": [
+            {
+              "expr": "{namespace=~\"log-generator|rest-api|batch-job\"} | json | level=\"WARNING\"",
+              "refId": "A",
+              "datasource": {"type": "loki", "uid": "Loki"}
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "wrapLogMessage": true,
+            "prettifyLogMessage": true,
+            "sortOrder": "Descending"
+          }
+        },
+        {
+          "id": 5,
+          "title": "Logs Per Application",
+          "type": "bargauge",
+          "gridPos": {"h": 8, "w": 8, "x": 0, "y": 18},
+          "targets": [
+            {
+              "expr": "sum by(namespace) (count_over_time({namespace=~\"log-generator|rest-api|batch-job\"} [10m]))",
+              "refId": "A",
+              "datasource": {"type": "loki", "uid": "Loki"},
+              "legendFormat": "{{namespace}}"
+            }
+          ],
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "showUnfilled": true
+          }
+        },
+        {
+          "id": 6,
+          "title": "HTTP Requests (Prometheus)",
+          "type": "stat",
+          "gridPos": {"h": 8, "w": 8, "x": 8, "y": 18},
+          "targets": [
+            {
+              "expr": "sum(increase(http_requests_total[10m]))",
+              "refId": "A",
+              "datasource": {"type": "prometheus", "uid": "Prometheus"}
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"value": 0, "color": "green"},
+                  {"value": 1000, "color": "yellow"},
+                  {"value": 5000, "color": "red"}
+                ]
+              }
+            }
+          },
+          "options": {
+            "graphMode": "area",
+            "colorMode": "value"
+          }
+        },
+        {
+          "id": 7,
+          "title": "Batch Job Success Rate",
+          "type": "gauge",
+          "gridPos": {"h": 8, "w": 8, "x": 16, "y": 18},
+          "targets": [
+            {
+              "expr": "avg_over_time({namespace=\"batch-job\"} | json | success_rate != \"\" | unwrap success_rate [30m])",
+              "refId": "A",
+              "datasource": {"type": "loki", "uid": "Loki"}
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"value": 0, "color": "red"},
+                  {"value": 80, "color": "yellow"},
+                  {"value": 95, "color": "green"}
+                ]
+              },
+              "unit": "percent",
+              "min": 0,
+              "max": 100
+            }
+          },
+          "options": {
+            "showThresholdLabels": true,
+            "showThresholdMarkers": true
+          }
+        },
+        {
+          "id": 8,
+          "title": "All Application Logs",
+          "type": "logs",
+          "gridPos": {"h": 12, "w": 24, "x": 0, "y": 26},
+          "targets": [
+            {
+              "expr": "{namespace=~\"log-generator|rest-api|batch-job\"}",
+              "refId": "A",
+              "datasource": {"type": "loki", "uid": "Loki"}
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "wrapLogMessage": true,
+            "prettifyLogMessage": true,
+            "sortOrder": "Descending"
+          }
+        }
+      ],
+      "timepicker": {
+        "refresh_intervals": ["5s", "10s", "30s", "1m"]
+      }
+    }
