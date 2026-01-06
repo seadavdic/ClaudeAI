@@ -27,6 +27,10 @@ spec:
             url: http://prometheus-prometheus-server.prometheus.svc.cluster.local:80
             access: proxy
             isDefault: true
+          - name: Loki
+            type: loki
+            url: http://loki:3100
+            access: proxy
     dashboardProviders:
       dashboardproviders.yaml:
         apiVersion: 1
@@ -40,4 +44,4 @@ spec:
             options:
               path: /var/lib/grafana/dashboards/default
     dashboardsConfigMaps:
-      default: "grafana-dashboards"
+      default: "grafana-dashboards,grafana-logs-dashboard"

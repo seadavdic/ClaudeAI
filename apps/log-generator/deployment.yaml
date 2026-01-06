@@ -1,0 +1,192 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: log-generator-script
+  namespace: log-generator
+data:
+  app.py: |
+    import logging
+    import json
+    import random
+    import time
+    from datetime import datetime
+
+    class JSONFormatter(logging.Formatter):
+        def format(self, record):
+            log_obj = {
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "level": record.levelname,
+                "logger": record.name,
+                "message": record.getMessage(),
+                "module": record.module,
+                "function": record.funcName,
+                "line": record.lineno
+            }
+
+            # Add extra fields if they exist
+            if hasattr(record, 'user_id'):
+                log_obj['user_id'] = record.user_id
+            if hasattr(record, 'transaction_id'):
+                log_obj['transaction_id'] = record.transaction_id
+            if hasattr(record, 'duration_ms'):
+                log_obj['duration_ms'] = record.duration_ms
+            if hasattr(record, 'error_code'):
+                log_obj['error_code'] = record.error_code
+
+            return json.dumps(log_obj)
+
+    # Configure logging
+    logger = logging.getLogger('log-generator')
+    logger.setLevel(logging.DEBUG)
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(JSONFormatter())
+    logger.addHandler(handler)
+
+    # Simulation scenarios
+    SCENARIOS = [
+        {
+            "name": "successful_transaction",
+            "weight": 50,
+            "logs": [
+                {"level": "INFO", "msg": "Starting transaction", "extras": {"transaction_id": "TXN-{}", "user_id": "USER-{}"}},
+                {"level": "DEBUG", "msg": "Validating user input", "extras": {"transaction_id": "TXN-{}"}},
+                {"level": "DEBUG", "msg": "Connecting to database", "extras": {"transaction_id": "TXN-{}"}},
+                {"level": "INFO", "msg": "Transaction completed successfully", "extras": {"transaction_id": "TXN-{}", "duration_ms": "random"}},
+            ]
+        },
+        {
+            "name": "slow_query",
+            "weight": 20,
+            "logs": [
+                {"level": "INFO", "msg": "Executing database query", "extras": {"transaction_id": "TXN-{}"}},
+                {"level": "WARNING", "msg": "Query execution taking longer than expected", "extras": {"transaction_id": "TXN-{}", "duration_ms": "random_slow"}},
+                {"level": "INFO", "msg": "Query completed", "extras": {"transaction_id": "TXN-{}", "duration_ms": "random_slow"}},
+            ]
+        },
+        {
+            "name": "validation_error",
+            "weight": 15,
+            "logs": [
+                {"level": "INFO", "msg": "Processing user request", "extras": {"user_id": "USER-{}"}},
+                {"level": "WARNING", "msg": "Invalid input detected", "extras": {"user_id": "USER-{}", "error_code": "INVALID_INPUT"}},
+                {"level": "ERROR", "msg": "Request rejected due to validation failure", "extras": {"user_id": "USER-{}", "error_code": "VALIDATION_FAILED"}},
+            ]
+        },
+        {
+            "name": "database_error",
+            "weight": 10,
+            "logs": [
+                {"level": "INFO", "msg": "Attempting database connection", "extras": {"transaction_id": "TXN-{}"}},
+                {"level": "ERROR", "msg": "Database connection timeout", "extras": {"transaction_id": "TXN-{}", "error_code": "DB_TIMEOUT"}},
+                {"level": "WARNING", "msg": "Retrying database connection", "extras": {"transaction_id": "TXN-{}"}},
+                {"level": "INFO", "msg": "Connection established on retry", "extras": {"transaction_id": "TXN-{}", "duration_ms": "random"}},
+            ]
+        },
+        {
+            "name": "critical_error",
+            "weight": 5,
+            "logs": [
+                {"level": "ERROR", "msg": "Unexpected error occurred", "extras": {"transaction_id": "TXN-{}", "error_code": "UNKNOWN_ERROR"}},
+                {"level": "CRITICAL", "msg": "Service degradation detected", "extras": {"error_code": "SERVICE_DEGRADED"}},
+            ]
+        }
+    ]
+
+    def weighted_choice():
+        """Choose a scenario based on weights"""
+        total = sum(s["weight"] for s in SCENARIOS)
+        r = random.randint(1, total)
+        upto = 0
+        for scenario in SCENARIOS:
+            if upto + scenario["weight"] >= r:
+                return scenario
+            upto += scenario["weight"]
+        return SCENARIOS[0]
+
+    def generate_logs():
+        """Generate logs based on random scenarios"""
+        counter = 1
+
+        while True:
+            scenario = weighted_choice()
+            txn_id = f"{counter:06d}"
+            user_id = f"{random.randint(1000, 9999)}"
+
+            logger.debug(f"Selected scenario: {scenario['name']}")
+
+            for log_entry in scenario["logs"]:
+                # Prepare extras
+                extras = {}
+                for key, value in log_entry.get("extras", {}).items():
+                    if isinstance(value, str) and "{}" in value:
+                        if key == "transaction_id":
+                            extras[key] = value.format(txn_id)
+                        elif key == "user_id":
+                            extras[key] = value.format(user_id)
+                        else:
+                            extras[key] = value
+                    elif value == "random":
+                        extras[key] = random.randint(50, 300)
+                    elif value == "random_slow":
+                        extras[key] = random.randint(500, 2000)
+                    else:
+                        extras[key] = value
+
+                # Log with appropriate level
+                msg = log_entry["msg"]
+                level = log_entry["level"]
+
+                if level == "DEBUG":
+                    logger.debug(msg, extra=extras)
+                elif level == "INFO":
+                    logger.info(msg, extra=extras)
+                elif level == "WARNING":
+                    logger.warning(msg, extra=extras)
+                elif level == "ERROR":
+                    logger.error(msg, extra=extras)
+                elif level == "CRITICAL":
+                    logger.critical(msg, extra=extras)
+
+                # Small delay between logs in same scenario
+                time.sleep(random.uniform(0.1, 0.5))
+
+            counter += 1
+
+            # Wait before next scenario
+            time.sleep(random.uniform(3, 8))
+
+    if __name__ == "__main__":
+        logger.info("Log Generator started")
+        try:
+            generate_logs()
+        except Exception as e:
+            logger.critical(f"Fatal error: {str(e)}")
+            raise
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-generator
+  namespace: log-generator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-generator
+  template:
+    metadata:
+      labels:
+        app: log-generator
+    spec:
+      containers:
+      - name: log-generator
+        image: python:3.9-slim
+        command: ["python", "/app/app.py"]
+        volumeMounts:
+        - name: script
+          mountPath: /app
+      volumes:
+      - name: script
+        configMap:
+          name: log-generator-script

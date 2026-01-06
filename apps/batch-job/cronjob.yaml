@@ -1,0 +1,171 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: batch-job-script
+  namespace: batch-job
+data:
+  batch_processor.py: |
+    import logging
+    import json
+    import random
+    import time
+    from datetime import datetime
+
+    class JSONFormatter(logging.Formatter):
+        def format(self, record):
+            log_obj = {
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "level": record.levelname,
+                "logger": record.name,
+                "message": record.getMessage(),
+                "job": "batch-processor"
+            }
+
+            if hasattr(record, 'batch_id'):
+                log_obj['batch_id'] = record.batch_id
+            if hasattr(record, 'processed_count'):
+                log_obj['processed_count'] = record.processed_count
+            if hasattr(record, 'failed_count'):
+                log_obj['failed_count'] = record.failed_count
+            if hasattr(record, 'duration_ms'):
+                log_obj['duration_ms'] = record.duration_ms
+            if hasattr(record, 'record_id'):
+                log_obj['record_id'] = record.record_id
+
+            return json.dumps(log_obj)
+
+    # Configure logging
+    logger = logging.getLogger('batch-processor')
+    logger.setLevel(logging.INFO)
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(JSONFormatter())
+    logger.addHandler(handler)
+
+    def process_batch():
+        """Simulate batch processing job"""
+        batch_id = f"BATCH-{int(time.time())}"
+        batch_size = random.randint(50, 200)
+
+        logger.info(
+            f"Starting batch job",
+            extra={"batch_id": batch_id, "batch_size": batch_size}
+        )
+
+        processed = 0
+        failed = 0
+        start_time = time.time()
+
+        for i in range(batch_size):
+            record_id = f"{batch_id}-REC-{i+1:04d}"
+
+            # Simulate processing
+            processing_time = random.uniform(0.01, 0.05)
+            time.sleep(processing_time)
+
+            # Random outcomes
+            outcome = random.randint(1, 100)
+
+            if outcome <= 85:
+                # Success - 85%
+                if i % 20 == 0:  # Log every 20th success
+                    logger.info(
+                        f"Processing record {i+1}/{batch_size}",
+                        extra={"batch_id": batch_id, "record_id": record_id}
+                    )
+                processed += 1
+
+            elif outcome <= 95:
+                # Recoverable error - 10%
+                logger.warning(
+                    f"Recoverable error processing record, retrying",
+                    extra={"batch_id": batch_id, "record_id": record_id}
+                )
+                time.sleep(0.1)  # Simulate retry delay
+                processed += 1
+
+            else:
+                # Permanent failure - 5%
+                logger.error(
+                    f"Failed to process record",
+                    extra={"batch_id": batch_id, "record_id": record_id}
+                )
+                failed += 1
+
+            # Simulate occasional slow records
+            if random.randint(1, 50) == 1:
+                logger.warning(
+                    f"Slow record detected",
+                    extra={"batch_id": batch_id, "record_id": record_id, "duration_ms": int(processing_time * 1000)}
+                )
+
+        duration_ms = int((time.time() - start_time) * 1000)
+
+        # Log completion
+        success_rate = (processed / batch_size) * 100
+        logger.info(
+            f"Batch job completed",
+            extra={
+                "batch_id": batch_id,
+                "processed_count": processed,
+                "failed_count": failed,
+                "duration_ms": duration_ms,
+                "success_rate": round(success_rate, 2)
+            }
+        )
+
+        # Log warning if too many failures
+        if failed > batch_size * 0.1:
+            logger.warning(
+                f"High failure rate detected",
+                extra={
+                    "batch_id": batch_id,
+                    "failed_count": failed,
+                    "total_count": batch_size
+                }
+            )
+
+        # Randomly log critical issues (very rare)
+        if random.randint(1, 10) == 1:
+            logger.critical(
+                f"Batch processing system health check failed",
+                extra={"batch_id": batch_id}
+            )
+
+    if __name__ == "__main__":
+        logger.info("Batch processor starting")
+        try:
+            process_batch()
+            logger.info("Batch processor finished successfully")
+        except Exception as e:
+            logger.critical(f"Batch processor crashed: {str(e)}")
+            raise
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: batch-processor
+  namespace: batch-job
+spec:
+  schedule: "*/5 * * * *"  # Every 5 minutes
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: batch-processor
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: batch-processor
+            image: python:3.9-slim
+            command: ["python", "/app/batch_processor.py"]
+            volumeMounts:
+            - name: script
+              mountPath: /app
+          volumes:
+          - name: script
+            configMap:
+              name: batch-job-script

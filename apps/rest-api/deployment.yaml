@@ -1,0 +1,260 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rest-api-script
+  namespace: rest-api
+data:
+  app.py: |
+    from flask import Flask, request, jsonify
+    import logging
+    import json
+    import random
+    import time
+    from datetime import datetime
+    import uuid
+
+    app = Flask(__name__)
+
+    class JSONFormatter(logging.Formatter):
+        def format(self, record):
+            log_obj = {
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "level": record.levelname,
+                "logger": record.name,
+                "message": record.getMessage(),
+                "module": record.module,
+                "function": record.funcName
+            }
+
+            # Add request context if available
+            if hasattr(record, 'request_id'):
+                log_obj['request_id'] = record.request_id
+            if hasattr(record, 'method'):
+                log_obj['method'] = record.method
+            if hasattr(record, 'path'):
+                log_obj['path'] = record.path
+            if hasattr(record, 'status_code'):
+                log_obj['status_code'] = record.status_code
+            if hasattr(record, 'duration_ms'):
+                log_obj['duration_ms'] = record.duration_ms
+            if hasattr(record, 'user_id'):
+                log_obj['user_id'] = record.user_id
+            if hasattr(record, 'ip_address'):
+                log_obj['ip_address'] = record.ip_address
+
+            return json.dumps(log_obj)
+
+    # Configure logging
+    logger = logging.getLogger('rest-api')
+    logger.setLevel(logging.INFO)
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(JSONFormatter())
+    logger.addHandler(handler)
+
+    # Middleware to log all requests
+    @app.before_request
+    def before_request():
+        request.start_time = time.time()
+        request.request_id = str(uuid.uuid4())[:8]
+
+        logger.info(
+            f"Incoming request: {request.method} {request.path}",
+            extra={
+                "request_id": request.request_id,
+                "method": request.method,
+                "path": request.path,
+                "ip_address": request.remote_addr
+            }
+        )
+
+    @app.after_request
+    def after_request(response):
+        duration = int((time.time() - request.start_time) * 1000)
+
+        log_level = logging.INFO
+        if response.status_code >= 500:
+            log_level = logging.ERROR
+        elif response.status_code >= 400:
+            log_level = logging.WARNING
+
+        logger.log(
+            log_level,
+            f"Request completed: {request.method} {request.path} - {response.status_code}",
+            extra={
+                "request_id": request.request_id,
+                "method": request.method,
+                "path": request.path,
+                "status_code": response.status_code,
+                "duration_ms": duration
+            }
+        )
+
+        return response
+
+    # API Endpoints
+    @app.route('/health', methods=['GET'])
+    def health():
+        """Health check endpoint"""
+        return jsonify({"status": "healthy", "service": "rest-api"}), 200
+
+    @app.route('/api/users', methods=['GET'])
+    def get_users():
+        """Get list of users"""
+        logger.info("Fetching user list", extra={"request_id": request.request_id})
+
+        # Simulate database query
+        time.sleep(random.uniform(0.05, 0.2))
+
+        users = [
+            {"id": 1, "name": "Alice"},
+            {"id": 2, "name": "Bob"},
+            {"id": 3, "name": "Charlie"}
+        ]
+
+        logger.info(
+            f"Retrieved {len(users)} users",
+            extra={"request_id": request.request_id, "user_count": len(users)}
+        )
+
+        return jsonify(users), 200
+
+    @app.route('/api/users/<int:user_id>', methods=['GET'])
+    def get_user(user_id):
+        """Get specific user"""
+        logger.info(
+            f"Fetching user {user_id}",
+            extra={"request_id": request.request_id, "user_id": user_id}
+        )
+
+        # Simulate database query
+        time.sleep(random.uniform(0.05, 0.15))
+
+        if user_id > 10:
+            logger.warning(
+                f"User {user_id} not found",
+                extra={"request_id": request.request_id, "user_id": user_id}
+            )
+            return jsonify({"error": "User not found"}), 404
+
+        user = {"id": user_id, "name": f"User{user_id}"}
+        return jsonify(user), 200
+
+    @app.route('/api/process', methods=['POST'])
+    def process_data():
+        """Process data with simulated business logic"""
+        data = request.get_json() or {}
+
+        logger.info(
+            "Processing data",
+            extra={"request_id": request.request_id, "data_keys": list(data.keys())}
+        )
+
+        # Simulate various processing scenarios
+        scenario = random.randint(1, 10)
+
+        if scenario <= 6:
+            # Success - 60%
+            time.sleep(random.uniform(0.1, 0.3))
+            logger.info(
+                "Data processed successfully",
+                extra={"request_id": request.request_id}
+            )
+            return jsonify({"status": "success", "result": "processed"}), 200
+
+        elif scenario <= 8:
+            # Slow query - 20%
+            logger.warning(
+                "Processing taking longer than expected",
+                extra={"request_id": request.request_id}
+            )
+            time.sleep(random.uniform(1, 2))
+            logger.info(
+                "Processing completed after delay",
+                extra={"request_id": request.request_id}
+            )
+            return jsonify({"status": "success", "result": "processed"}), 200
+
+        elif scenario == 9:
+            # Validation error - 10%
+            logger.warning(
+                "Invalid data format",
+                extra={"request_id": request.request_id}
+            )
+            return jsonify({"error": "Invalid data format"}), 400
+
+        else:
+            # Server error - 10%
+            logger.error(
+                "Internal processing error",
+                extra={"request_id": request.request_id}
+            )
+            return jsonify({"error": "Internal server error"}), 500
+
+    @app.route('/api/slow', methods=['GET'])
+    def slow_endpoint():
+        """Intentionally slow endpoint for testing"""
+        logger.info(
+            "Slow endpoint called",
+            extra={"request_id": request.request_id}
+        )
+
+        time.sleep(random.uniform(2, 5))
+
+        logger.warning(
+            "Slow endpoint completed",
+            extra={"request_id": request.request_id}
+        )
+
+        return jsonify({"message": "This was slow"}), 200
+
+    @app.route('/api/error', methods=['GET'])
+    def error_endpoint():
+        """Endpoint that always errors (for testing)"""
+        logger.error(
+            "Error endpoint called - simulating failure",
+            extra={"request_id": request.request_id}
+        )
+        return jsonify({"error": "Simulated error"}), 500
+
+    if __name__ == '__main__':
+        logger.info("REST API starting up")
+        app.run(host='0.0.0.0', port=5000)
+
+  requirements.txt: |
+    flask==2.3.0
+    werkzeug==2.3.0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rest-api
+  namespace: rest-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rest-api
+  template:
+    metadata:
+      labels:
+        app: rest-api
+    spec:
+      containers:
+      - name: rest-api
+        image: python:3.9-slim
+        command:
+          - /bin/sh
+          - -c
+          - |
+            pip install -q -r /app/requirements.txt
+            python /app/app.py
+        ports:
+        - containerPort: 5000
+        volumeMounts:
+        - name: script
+          mountPath: /app
+      volumes:
+      - name: script
+        configMap:
+          name: rest-api-script

@@ -1,0 +1,85 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: loki
+  namespace: flux-system
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: loki-stack
+      sourceRef:
+        kind: HelmRepository
+        name: grafana
+  targetNamespace: loki
+  install:
+    createNamespace: true
+  values:
+    loki:
+      enabled: true
+      persistence:
+        enabled: true
+        storageClassName: local-path
+        size: 5Gi
+      config:
+        auth_enabled: false
+        server:
+          http_listen_port: 3100
+        ingester:
+          lifecycler:
+            ring:
+              replication_factor: 1
+        schema_config:
+          configs:
+            - from: 2020-10-24
+              store: boltdb-shipper
+              object_store: filesystem
+              schema: v11
+              index:
+                prefix: index_
+                period: 24h
+        storage_config:
+          boltdb_shipper:
+            active_index_directory: /data/loki/boltdb-shipper-active
+            cache_location: /data/loki/boltdb-shipper-cache
+            cache_ttl: 24h
+            shared_store: filesystem
+          filesystem:
+            directory: /data/loki/chunks
+        compactor:
+          working_directory: /data/loki/boltdb-shipper-compactor
+          shared_store: filesystem
+        limits_config:
+          retention_period: 48h  # 2 days
+          reject_old_samples: true
+          reject_old_samples_max_age: 48h
+
+    promtail:
+      enabled: true
+      config:
+        clients:
+          - url: http://loki:3100/loki/api/v1/push
+        positions:
+          filename: /tmp/positions.yaml
+        scrape_configs:
+          # Scrape all pods
+          - job_name: kubernetes-pods
+            kubernetes_sd_configs:
+              - role: pod
+            relabel_configs:
+              - source_labels: [__meta_kubernetes_pod_node_name]
+                target_label: node_name
+              - source_labels: [__meta_kubernetes_namespace]
+                target_label: namespace
+              - source_labels: [__meta_kubernetes_pod_name]
+                target_label: pod
+              - source_labels: [__meta_kubernetes_pod_container_name]
+                target_label: container
+              - source_labels: [__meta_kubernetes_pod_label_app]
+                target_label: app
+
+    grafana:
+      enabled: false  # We already have Grafana deployed
+
+    prometheus:
+      enabled: false  # We already have Prometheus deployed
