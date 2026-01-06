@@ -17,6 +17,8 @@ spec:
   values:
     loki:
       enabled: true
+      image:
+        tag: 2.4.2  # Use older version compatible with ARM32
       persistence:
         enabled: true
         storageClassName: local-path
