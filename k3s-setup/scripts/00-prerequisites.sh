@@ -68,7 +68,7 @@ echo ""
 
 # Enable IP forwarding
 echo "[5/7] Enabling IP forwarding..."
-cat <<EOF > /etc/sysctl.d/k8s.conf
+cat <<EOF > /etc/sysctl.d/k3s.conf
 net.bridge.bridge-nf-call-iptables = 1
 net.bridge.bridge-nf-call-ip6tables = 1
 net.ipv4.ip_forward = 1

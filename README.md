@@ -4,7 +4,7 @@ This repository contains infrastructure and automation scripts for various proje
 
 ## Projects
 
-### 🚀 [Kubernetes Cluster Setup for Raspberry Pi](k8s-setup/)
+### 🚀 [Kubernetes Cluster Setup for Raspberry Pi](k3s-setup/)
 
 Automated scripts to set up a lightweight Kubernetes cluster using k3s on Raspberry Pi devices.
 
@@ -16,13 +16,13 @@ Automated scripts to set up a lightweight Kubernetes cluster using k3s on Raspbe
 
 **Quick Start:**
 ```bash
-cd k8s-setup/scripts
+cd k3s-setup/scripts
 sudo bash 00-prerequisites.sh  # Run on both nodes
 sudo bash 01-install-master.sh  # Run on master
 sudo bash 02-install-worker.sh  # Run on worker
 ```
 
-📖 [Full Documentation](k8s-setup/README.md)
+📖 [Full Documentation](k3s-setup/INSTALLATION-GUIDE.md)
 
 ---
 
@@ -30,8 +30,8 @@ sudo bash 02-install-worker.sh  # Run on worker
 
 ```
 .
-├── k8s-setup/           # Kubernetes cluster setup for Raspberry Pi
-│   ├── README.md        # Detailed setup guide
+├── k3s-setup/           # k3s cluster setup for Raspberry Pi
+│   ├── INSTALLATION-GUIDE.md  # Detailed setup guide
 │   └── scripts/         # Installation scripts
 │       ├── 00-prerequisites.sh
 │       ├── 01-install-master.sh

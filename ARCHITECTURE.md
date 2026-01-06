@@ -350,7 +350,7 @@ yourname/ClaudeAI/
 │   │
 │   └── 📄 apps-kustomization.yaml             ← Watches ./apps/ folder
 │
-└── 📁 k8s-setup/                               ← Installation Scripts
+└── 📁 k3s-setup/                               ← Installation Scripts
     ├── 📁 scripts/
     │   ├── 📄 00-prerequisites.sh             ← System prep
     │   ├── 📄 01-install-master.sh            ← k3s master installation

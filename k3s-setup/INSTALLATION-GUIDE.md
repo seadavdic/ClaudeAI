@@ -145,7 +145,7 @@ notepad C:\Windows\System32\drivers\etc\hosts
 ssh pi@k3s-master
 cd ~
 git clone https://github.com/seadavdic/ClaudeAI.git
-cd ClaudeAI/k8s-setup/scripts
+cd ClaudeAI/k3s-setup/scripts
 ls -l  # Verify scripts are there
 ```
 
@@ -154,7 +154,7 @@ ls -l  # Verify scripts are there
 ssh pi@k3s-worker-1
 cd ~
 git clone https://github.com/seadavdic/ClaudeAI.git
-cd ClaudeAI/k8s-setup/scripts
+cd ClaudeAI/k3s-setup/scripts
 ls -l
 ```
 
@@ -163,7 +163,7 @@ ls -l
 **On Master Pi:**
 ```bash
 ssh pi@k3s-master
-cd ~/ClaudeAI/k8s-setup/scripts
+cd ~/ClaudeAI/k3s-setup/scripts
 sudo bash 00-prerequisites.sh
 # Answer 'y' when asked if this is the master node
 # Answer 'y' to set hostname
@@ -173,7 +173,7 @@ sudo bash 00-prerequisites.sh
 **On Worker Pi:**
 ```bash
 ssh pi@k3s-worker-1
-cd ~/ClaudeAI/k8s-setup/scripts
+cd ~/ClaudeAI/k3s-setup/scripts
 sudo bash 00-prerequisites.sh
 # Answer 'n' when asked if this is the master node
 # Answer 'y' to set hostname
@@ -186,7 +186,7 @@ sudo bash 00-prerequisites.sh
 
 ```bash
 ssh pi@k3s-master
-cd ~/ClaudeAI/k8s-setup/scripts
+cd ~/ClaudeAI/k3s-setup/scripts
 sudo bash 01-install-master.sh
 
 # Script will display:
@@ -207,7 +207,7 @@ Node Token: K107c5...::server:abc123...
 
 ```bash
 ssh pi@k3s-worker-1
-cd ~/ClaudeAI/k8s-setup/scripts
+cd ~/ClaudeAI/k3s-setup/scripts
 sudo bash 02-install-worker.sh
 
 # When prompted:
@@ -220,7 +220,7 @@ sudo bash 02-install-worker.sh
 **On Master Pi:**
 ```bash
 ssh pi@k3s-master
-sudo bash ~/ClaudeAI/k8s-setup/scripts/03-verify-cluster.sh
+sudo bash ~/ClaudeAI/k3s-setup/scripts/03-verify-cluster.sh
 ```
 
 You should see both nodes in "Ready" status!
