@@ -31,6 +31,8 @@ data:
                 log_obj['duration_ms'] = record.duration_ms
             if hasattr(record, 'record_id'):
                 log_obj['record_id'] = record.record_id
+            if hasattr(record, 'success_rate'):
+                log_obj['success_rate'] = record.success_rate
 
             return json.dumps(log_obj)
 
