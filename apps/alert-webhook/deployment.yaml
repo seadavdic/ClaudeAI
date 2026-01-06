@@ -1,0 +1,155 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alert-webhook-script
+  namespace: alertmanager
+data:
+  webhook.py: |
+    from flask import Flask, request, jsonify
+    import logging
+    import json
+    from datetime import datetime
+
+    app = Flask(__name__)
+
+    # Configure JSON logging
+    class JSONFormatter(logging.Formatter):
+        def format(self, record):
+            log_obj = {
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "level": record.levelname,
+                "service": "alert-webhook",
+                "message": record.getMessage()
+            }
+            if hasattr(record, 'alert_data'):
+                log_obj['alert_data'] = record.alert_data
+            return json.dumps(log_obj)
+
+    logger = logging.getLogger('alert-webhook')
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler()
+    handler.setFormatter(JSONFormatter())
+    logger.addHandler(handler)
+
+    @app.route('/webhook', methods=['POST'])
+    def webhook():
+        """Default webhook endpoint"""
+        data = request.get_json()
+
+        for alert in data.get('alerts', []):
+            status = alert.get('status', 'unknown')
+            labels = alert.get('labels', {})
+            annotations = alert.get('annotations', {})
+
+            log_data = {
+                'status': status,
+                'alertname': labels.get('alertname', 'unknown'),
+                'severity': labels.get('severity', 'unknown'),
+                'summary': annotations.get('summary', ''),
+                'description': annotations.get('description', '')
+            }
+
+            if status == 'firing':
+                logger.warning(
+                    f"🚨 ALERT FIRING: {labels.get('alertname')}",
+                    extra={'alert_data': log_data}
+                )
+            else:
+                logger.info(
+                    f"✅ ALERT RESOLVED: {labels.get('alertname')}",
+                    extra={'alert_data': log_data}
+                )
+
+        return jsonify({"status": "received"}), 200
+
+    @app.route('/webhook/critical', methods=['POST'])
+    def webhook_critical():
+        """Critical alerts webhook"""
+        data = request.get_json()
+
+        for alert in data.get('alerts', []):
+            labels = alert.get('labels', {})
+            annotations = alert.get('annotations', {})
+
+            logger.critical(
+                f"🔥 CRITICAL ALERT: {labels.get('alertname')} - {annotations.get('summary')}",
+                extra={'alert_data': alert}
+            )
+
+        return jsonify({"status": "received"}), 200
+
+    @app.route('/webhook/batch-jobs', methods=['POST'])
+    def webhook_batch_jobs():
+        """Batch job alerts webhook"""
+        data = request.get_json()
+
+        for alert in data.get('alerts', []):
+            logger.info(
+                f"📊 BATCH JOB ALERT: {alert.get('labels', {}).get('alertname')}",
+                extra={'alert_data': alert}
+            )
+
+        return jsonify({"status": "received"}), 200
+
+    @app.route('/webhook/infrastructure', methods=['POST'])
+    def webhook_infrastructure():
+        """Infrastructure alerts webhook"""
+        data = request.get_json()
+
+        for alert in data.get('alerts', []):
+            logger.warning(
+                f"⚙️ INFRASTRUCTURE ALERT: {alert.get('labels', {}).get('alertname')}",
+                extra={'alert_data': alert}
+            )
+
+        return jsonify({"status": "received"}), 200
+
+    @app.route('/health', methods=['GET'])
+    def health():
+        """Health check endpoint"""
+        return jsonify({"status": "healthy"}), 200
+
+    if __name__ == '__main__':
+        logger.info("Alert webhook receiver starting on port 5001")
+        app.run(host='0.0.0.0', port=5001)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alert-webhook
+  namespace: alertmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alert-webhook
+  template:
+    metadata:
+      labels:
+        app: alert-webhook
+    spec:
+      containers:
+      - name: webhook
+        image: python:3.9-slim
+        command:
+          - sh
+          - -c
+          - |
+            pip install flask && python /app/webhook.py
+        ports:
+        - containerPort: 5001
+          name: http
+        volumeMounts:
+        - name: script
+          mountPath: /app
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+      volumes:
+      - name: script
+        configMap:
+          name: alert-webhook-script
