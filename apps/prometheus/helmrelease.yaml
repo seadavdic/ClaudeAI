@@ -120,14 +120,14 @@ spec:
 
               - alert: NodeDown
                 expr: |
-                  up{job="prometheus-prometheus-node-exporter"} == 0
+                  up{service=~".*node-exporter.*"} == 0
                 for: 1m
                 labels:
                   severity: critical
                   component: infrastructure
                 annotations:
-                  summary: "Node {{ $labels.instance }} is down"
-                  description: "Node exporter is not reachable"
+                  summary: "Node {{ $labels.node }} is down"
+                  description: "Node exporter is not reachable on {{ $labels.node }}"
 
               - alert: DiskSpaceRunningLow
                 expr: |

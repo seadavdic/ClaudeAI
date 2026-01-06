@@ -811,10 +811,10 @@ data:
           "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
           "targets": [
             {
-              "expr": "up{job=\"prometheus-prometheus-node-exporter\"}",
+              "expr": "up{service=~\".*node-exporter.*\"}",
               "refId": "A",
               "datasource": {"type": "prometheus", "uid": "Prometheus"},
-              "legendFormat": "{{instance}}"
+              "legendFormat": "{{node}}"
             }
           ],
           "fieldConfig": {
@@ -877,10 +877,10 @@ data:
           "gridPos": {"h": 4, "w": 12, "x": 12, "y": 24},
           "targets": [
             {
-              "expr": "ALERTS{alertstate=\"firing\"}",
+              "expr": "count(ALERTS{alertstate=\"firing\"}) OR vector(0)",
               "refId": "A",
               "datasource": {"type": "prometheus", "uid": "Prometheus"},
-              "legendFormat": "{{alertname}}"
+              "legendFormat": "Firing Alerts"
             }
           ],
           "fieldConfig": {
