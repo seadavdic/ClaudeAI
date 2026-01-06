@@ -1,0 +1,31 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: prometheus
+  namespace: flux-system
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: prometheus
+      sourceRef:
+        kind: HelmRepository
+        name: prometheus-community
+  targetNamespace: prometheus
+  install:
+    createNamespace: true
+  values:
+    server:
+      persistentVolume:
+        enabled: false
+      service:
+        type: ClusterIP
+        servicePort: 80
+    alertmanager:
+      enabled: false
+    pushgateway:
+      enabled: false
+    nodeExporter:
+      enabled: true
+    kubeStateMetrics:
+      enabled: true
