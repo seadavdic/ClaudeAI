@@ -29,3 +29,11 @@ spec:
       enabled: true
     kubeStateMetrics:
       enabled: true
+    serverFiles:
+      prometheus.yml:
+        scrape_configs:
+          - job_name: 'metrics-app'
+            static_configs:
+              - targets: ['metrics-app.metrics-app.svc.cluster.local:8000']
+            scrape_interval: 30s
+            metrics_path: '/metrics'
