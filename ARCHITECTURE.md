@@ -118,7 +118,9 @@
 │  │  │     ├─ Port: 9090                                    │      │   │
 │  │  │     ├─ Namespace: prometheus                         │      │   │
 │  │  │     ├─ Scrapes metrics every 30s                     │      │   │
-│  │  │     └─ Stores time-series data                       │      │   │
+│  │  │     ├─ Persistent Volume: 5Gi (local-path)           │      │   │
+│  │  │     ├─ Retention: 2 days                             │      │   │
+│  │  │     └─ Data survives pod restarts                    │      │   │
 │  │  └──────────────────────────────────────────────────────┘      │   │
 │  │                                                                 │   │
 │  │  ┌──────────────────────────────────────────────────────┐      │   │
