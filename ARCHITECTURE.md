@@ -38,6 +38,7 @@
 │  │                                │                                  │ │
 │  │  📝 hosts file:                │                                  │ │
 │  │  192.168.1.100 grafana.local   │                                  │ │
+│  │  192.168.1.100 prometheus.local│                                  │ │
 │  │                                │                                  │ │
 │  │  🌐 Browser Access:            │                                  │ │
 │  │  http://grafana.local:30683 ◄──┘                                  │ │
@@ -75,7 +76,8 @@
 │  │  │  NodePort: 30683 (HTTP)                                │   │   │
 │  │  │  Routes traffic based on hostname                      │   │   │
 │  │  │                                                         │   │   │
-│  │  │  grafana.local ──► grafana-grafana service             │   │   │
+│  │  │  grafana.local ─────► grafana-grafana service          │   │   │
+│  │  │  prometheus.local ──► prometheus-server service        │   │   │
 │  │  └─────────────────────────────────────────────────────────┘   │   │
 │  │                                                                 │   │
 │  │  ┌─────────────────────────────────────────────────────────┐   │   │
@@ -106,7 +108,26 @@
 │  │  │     ├─ Container: grafana:latest                     │      │   │
 │  │  │     ├─ Port: 3000                                    │      │   │
 │  │  │     ├─ Namespace: grafana                            │      │   │
-│  │  │     └─ Monitoring & Dashboards                       │      │   │
+│  │  │     ├─ Monitoring & Dashboards                       │      │   │
+│  │  │     └─ Connected to Prometheus datasource            │      │   │
+│  │  └──────────────────────────────────────────────────────┘      │   │
+│  │                                                                 │   │
+│  │  ┌──────────────────────────────────────────────────────┐      │   │
+│  │  │  📈 Prometheus Pod                                   │      │   │
+│  │  │     ├─ Container: prometheus                         │      │   │
+│  │  │     ├─ Port: 9090                                    │      │   │
+│  │  │     ├─ Namespace: prometheus                         │      │   │
+│  │  │     ├─ Scrapes metrics every 30s                     │      │   │
+│  │  │     └─ Stores time-series data                       │      │   │
+│  │  └──────────────────────────────────────────────────────┘      │   │
+│  │                                                                 │   │
+│  │  ┌──────────────────────────────────────────────────────┐      │   │
+│  │  │  🐍 Metrics App Pod (Python)                         │      │   │
+│  │  │     ├─ Image: python:3.9-slim                        │      │   │
+│  │  │     ├─ Port: 8000 (/metrics endpoint)                │      │   │
+│  │  │     ├─ Namespace: metrics-app                        │      │   │
+│  │  │     ├─ Generates random web server metrics           │      │   │
+│  │  │     └─ Updates every 60 seconds                      │      │   │
 │  │  └──────────────────────────────────────────────────────┘      │   │
 │  │                                                                 │   │
 │  │  ┌──────────────────────────────────────────────────────┐      │   │
@@ -155,7 +176,9 @@
                                     ┌──────────────┐     │  ┌──────────────┐
                                     │  apps/       │     └──│  Reconciles  │
                                     │  ├─grafana/  │        │  cluster     │
-                                    │  ├─metallb/  │        │  state       │
+                                    │  ├─prometheus│        │  state       │
+                                    │  ├─metrics-app        │              │
+                                    │  ├─metallb/  │        │              │
                                     │  └─cloudflared/      │              │
                                     └──────────────┘        └──────────────┘
                                                                    │
@@ -164,6 +187,8 @@
   4️⃣  Kubernetes Cluster          ◄─────────────────────  Applies changes
   ┌──────────────────────────┐                            automatically!
   │  📊 Grafana                │
+  │  📈 Prometheus             │
+  │  🐍 Metrics App            │
   │  🔀 MetalLB                │
   │  🌐 Cloudflared            │
   └──────────────────────────┘
@@ -253,6 +278,92 @@
 
 ---
 
+## 📊 Metrics & Monitoring Flow
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                   METRICS COLLECTION PIPELINE                        │
+└──────────────────────────────────────────────────────────────────────┘
+
+  Step 1: Metrics Generation
+  ┌──────────────────────────────────────┐
+  │  🐍 Metrics App (Python)             │
+  │                                      │
+  │  Every 60 seconds:                   │
+  │  ├─ Generate 10-50 random requests   │
+  │  ├─ Simulate response times          │
+  │  ├─ Simulate errors (400, 500)       │
+  │  └─ Update active connections        │
+  │                                      │
+  │  Exposes metrics on:                 │
+  │  http://metrics-app:8000/metrics     │
+  └──────────────┬───────────────────────┘
+                 │
+                 │ Metrics in Prometheus format
+                 │ (Counters, Gauges, Histograms)
+                 │
+                 ▼
+  Step 2: Metrics Scraping
+  ┌──────────────────────────────────────┐
+  │  📈 Prometheus Server                │
+  │                                      │
+  │  Scrape interval: 30 seconds         │
+  │  Target: metrics-app.metrics-app     │
+  │          .svc.cluster.local:8000     │
+  │                                      │
+  │  Collected metrics:                  │
+  │  ├─ http_requests_total              │
+  │  ├─ http_request_duration_seconds    │
+  │  ├─ http_active_connections          │
+  │  └─ http_errors_total                │
+  │                                      │
+  │  Stored as time-series data          │
+  └──────────────┬───────────────────────┘
+                 │
+                 │ PromQL queries
+                 │
+                 ▼
+  Step 3: Visualization
+  ┌──────────────────────────────────────┐
+  │  📊 Grafana Dashboard                │
+  │                                      │
+  │  Datasource: Prometheus              │
+  │  http://prometheus-prometheus-       │
+  │  server.prometheus.svc:80            │
+  │                                      │
+  │  8 Dashboard Panels:                 │
+  │  ┌────────────────────────────────┐  │
+  │  │ 1. Total Requests (Counter)    │  │
+  │  │ 2. Active Connections (Gauge)  │  │
+  │  │ 3. Request Rate (Graph)        │  │
+  │  │ 4. Requests by Status (Graph)  │  │
+  │  │ 5. Duration p50/p95/p99 (Graph)│  │
+  │  │ 6. Error Rate by Type (Graph)  │  │
+  │  │ 7. Total Errors (Counter)      │  │
+  │  │ 8. Requests by Endpoint (Pie)  │  │
+  │  └────────────────────────────────┘  │
+  │                                      │
+  │  Auto-refresh: 30 seconds            │
+  └──────────────┬───────────────────────┘
+                 │
+                 │ HTTP
+                 │
+                 ▼
+  Step 4: User Access
+  ┌──────────────────────────────────────┐
+  │  👤 User's Browser                   │
+  │                                      │
+  │  Local: http://grafana.local:30683   │
+  │  External: https://[tunnel].         │
+  │           trycloudflare.com          │
+  │                                      │
+  │  View real-time web server metrics   │
+  │  with beautiful visualizations!      │
+  └──────────────────────────────────────┘
+```
+
+---
+
 ## 🛠️ Installation Journey (Step by Step)
 
 ```
@@ -309,13 +420,41 @@ START
   │   ├─ Add to Windows hosts file
   │   └─ ✅ Clean URL: http://grafana.local:30683
   │
-  └─► Step 9: Cloudflare Tunnel
-      ├─ Create cloudflared deployment
-      ├─ ISSUE: Official image no ARM32 support
-      ├─ SOLUTION: Use erisamoe/cloudflared
-      ├─ ISSUE: Liveness probe failing
-      ├─ FIX: Remove liveness probe
-      └─ ✅ Public access: https://your-tunnel-name.trycloudflare.com
+  ├─► Step 9: Cloudflare Tunnel
+  │   ├─ Create cloudflared deployment
+  │   ├─ ISSUE: Official image no ARM32 support
+  │   ├─ SOLUTION: Use erisamoe/cloudflared
+  │   ├─ ISSUE: Liveness probe failing
+  │   ├─ FIX: Remove liveness probe
+  │   └─ ✅ Public access: https://your-tunnel-name.trycloudflare.com
+  │
+  ├─► Step 10: Prometheus Monitoring
+  │   ├─ Create prometheus HelmRelease
+  │   ├─ Create Ingress for Prometheus UI
+  │   ├─ Configure prometheus.local hostname
+  │   ├─ ISSUE: Wrong service name in Ingress
+  │   ├─ FIX: Use prometheus-prometheus-server
+  │   └─ ✅ Prometheus UI: http://prometheus.local:30683
+  │
+  ├─► Step 11: Metrics Generator App
+  │   ├─ Create Python app with prometheus_client
+  │   ├─ Generate random web server metrics
+  │   ├─ Deploy via ConfigMap (embedded code)
+  │   ├─ Create Service and Namespace
+  │   ├─ Configure Prometheus scrape target
+  │   ├─ Create kustomization.yaml for GitOps
+  │   └─ ✅ Metrics app generates data every 60s
+  │
+  └─► Step 12: Grafana Dashboard
+      ├─ Configure Prometheus as datasource
+      ├─ Create Web Server Metrics dashboard
+      ├─ Add 8 visualization panels:
+      │   ├─ Counters (Total Requests, Errors)
+      │   ├─ Gauge (Active Connections)
+      │   ├─ Graphs (Rate, Status, Duration, Errors)
+      │   └─ Pie Chart (Requests by Endpoint)
+      ├─ Deploy via ConfigMap
+      └─ ✅ Complete monitoring stack operational
 END
 ```
 
@@ -330,8 +469,20 @@ yourname/ClaudeAI/
 │   │
 │   ├── 📁 grafana/
 │   │   ├── 📄 helmrepository.yaml             ← Grafana Helm repo
-│   │   ├── 📄 helmrelease.yaml                ← Grafana deployment config
-│   │   └── 📄 ingress.yaml                    ← Traefik ingress rules
+│   │   ├── 📄 helmrelease.yaml                ← Grafana config + Prometheus datasource
+│   │   ├── 📄 ingress.yaml                    ← Traefik ingress rules
+│   │   └── 📄 dashboard-configmap.yaml        ← Web Server Metrics dashboard
+│   │
+│   ├── 📁 prometheus/
+│   │   ├── 📄 helmrepository.yaml             ← Prometheus community Helm repo
+│   │   ├── 📄 helmrelease.yaml                ← Prometheus + scrape configs
+│   │   └── 📄 ingress.yaml                    ← Prometheus UI ingress
+│   │
+│   ├── 📁 metrics-app/
+│   │   ├── 📄 kustomization.yaml              ← Kustomize config for GitOps
+│   │   ├── 📄 namespace.yaml                  ← metrics-app namespace
+│   │   ├── 📄 deployment.yaml                 ← Python app + ConfigMap
+│   │   └── 📄 service.yaml                    ← Service exposing /metrics
 │   │
 │   ├── 📁 metallb/
 │   │   ├── 📄 namespace.yaml                  ← metallb-system namespace
@@ -369,9 +520,14 @@ yourname/ClaudeAI/
 ┌─────────────────────────────────────────────────────────────────┐
 │                      APPLICATION LAYER                          │
 │  ┌────────────┐  ┌────────────┐  ┌────────────┐                │
-│  │  Grafana   │  │   Future   │  │   Future   │                │
-│  │ Monitoring │  │   App #2   │  │   App #3   │                │
+│  │  Grafana   │  │ Prometheus │  │  Metrics   │                │
+│  │ Dashboards │  │  Metrics   │  │    App     │                │
+│  │            │  │  Storage   │  │  (Python)  │                │
 │  └────────────┘  └────────────┘  └────────────┘                │
+│       │                 ▲                │                      │
+│       └─────queries─────┘                │                      │
+│                                          │                      │
+│                    ◄──────scrapes────────┘                      │
 └────────────────────────┬────────────────────────────────────────┘
                          │
 ┌────────────────────────┴────────────────────────────────────────┐
@@ -439,39 +595,54 @@ yourname/ClaudeAI/
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    HOW TO ACCESS GRAFANA                        │
+│                 HOW TO ACCESS YOUR SERVICES                     │
 └─────────────────────────────────────────────────────────────────┘
 
-  📍 Method 1: Direct NodePort (Local Network)
+  📊 GRAFANA (Dashboards & Visualizations)
   ┌──────────────────────────────────────────────────────────┐
-  │  URL: http://192.168.1.100:32188                          │
-  │  Access: Only from home network                          │
-  │  Pros: Direct, no dependencies                           │
-  │  Cons: Hard to remember, not portable                    │
-  └──────────────────────────────────────────────────────────┘
-
-  📍 Method 2: Traefik Ingress (Local Network)
-  ┌──────────────────────────────────────────────────────────┐
-  │  URL: http://grafana.local:30683                         │
-  │  Requires: hosts file entry                              │
-  │  Access: Only from Windows PC (with hosts entry)         │
-  │  Pros: Clean hostname, easy to remember                  │
-  │  Cons: Requires hosts file, still needs port             │
-  └──────────────────────────────────────────────────────────┘
-
-  📍 Method 3: Cloudflare Tunnel (WORLDWIDE!)
-  ┌──────────────────────────────────────────────────────────┐
-  │  URL: https://your-tunnel-name.trycloudflare.com         │
+  │  Local:  http://grafana.local:30683                      │
+  │  External: https://[tunnel].trycloudflare.com            │
   │                                                          │
-  │  Access: ANYWHERE in the world!                          │
-  │  Pros: Public HTTPS, no port forwarding, secure          │
-  │  Cons: URL changes if pod restarts                       │
+  │  🔐 Login:                                               │
+  │    Username: admin                                       │
+  │    Password: <your-grafana-password>                     │
+  │                                                          │
+  │  Features:                                               │
+  │  ├─ Web Server Metrics dashboard                         │
+  │  ├─ Real-time data (30s refresh)                         │
+  │  └─ 8 visualization panels                               │
   └──────────────────────────────────────────────────────────┘
 
-  🔐 Login Credentials (All Methods):
+  📈 PROMETHEUS (Metrics & Time-Series DB)
   ┌──────────────────────────────────────────────────────────┐
-  │  Username: admin                                         │
-  │  Password: <your-grafana-password>                       │
+  │  Local:  http://prometheus.local:30683                   │
+  │                                                          │
+  │  Features:                                               │
+  │  ├─ Query metrics with PromQL                            │
+  │  ├─ View targets (Status → Targets)                     │
+  │  ├─ Explore collected metrics                            │
+  │  └─ See scrape configurations                            │
+  │                                                          │
+  │  No authentication required (internal use)               │
+  └──────────────────────────────────────────────────────────┘
+
+  🐍 METRICS APP (Metrics Generator)
+  ┌──────────────────────────────────────────────────────────┐
+  │  Endpoint: http://metrics-app.metrics-app.svc:8000       │
+  │  Metrics:  http://metrics-app.metrics-app.svc:8000/      │
+  │            metrics                                       │
+  │                                                          │
+  │  Internal service - scraped by Prometheus every 30s      │
+  │  Generates random web server metrics every 60s           │
+  └──────────────────────────────────────────────────────────┘
+
+  💡 REQUIREMENTS FOR LOCAL ACCESS:
+  ┌──────────────────────────────────────────────────────────┐
+  │  Add to Windows hosts file:                              │
+  │  C:\Windows\System32\drivers\etc\hosts                   │
+  │                                                          │
+  │  192.168.1.100 grafana.local                             │
+  │  192.168.1.100 prometheus.local                          │
   └──────────────────────────────────────────────────────────┘
 ```
 
@@ -614,18 +785,31 @@ yourname/ClaudeAI/
 
 ---
 
-## 📈 Future Expansion Possibilities
+## 📈 Current Stack & Future Expansion
 
 ```
+┌─────────────────────────────────────────────────────────────────┐
+│                    WHAT YOU HAVE NOW                            │
+└─────────────────────────────────────────────────────────────────┘
+
+  ✅ IMPLEMENTED:
+  ├─ k3s Kubernetes cluster (2 nodes)
+  ├─ Flux CD GitOps automation
+  ├─ Traefik Ingress Controller
+  ├─ Cloudflare Tunnel (public access)
+  ├─ Grafana (dashboards & visualization)
+  ├─ Prometheus (metrics collection & storage)
+  ├─ Custom Metrics App (Python)
+  └─ Complete monitoring pipeline
+
 ┌─────────────────────────────────────────────────────────────────┐
 │                  WHAT YOU CAN ADD NEXT                          │
 └─────────────────────────────────────────────────────────────────┘
 
-  📊 Monitoring Stack
-  ├─ Prometheus (metrics collection)
+  📊 Enhanced Monitoring
   ├─ Loki (log aggregation)
-  ├─ Grafana dashboards (already have this!)
-  └─ AlertManager (notifications)
+  ├─ AlertManager (notifications via email/Slack)
+  ├─ More custom metrics apps
 
   🗄️ Databases
   ├─ PostgreSQL
@@ -657,6 +841,8 @@ yourname/ClaudeAI/
 ---
 
 **Created:** 2026-01-04
+**Last Updated:** 2026-01-06
 **Cluster:** 2x Raspberry Pi (ARMv7)
 **GitOps:** Flux CD
+**Monitoring:** Prometheus + Grafana + Custom Metrics App
 **Public Access:** Cloudflare Tunnel
