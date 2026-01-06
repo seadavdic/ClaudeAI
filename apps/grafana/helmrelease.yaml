@@ -44,4 +44,4 @@ spec:
             options:
               path: /var/lib/grafana/dashboards/default
     dashboardsConfigMaps:
-      default: "grafana-dashboards,grafana-logs-dashboard"
+      default: "grafana-dashboards"
