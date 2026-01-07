@@ -889,7 +889,8 @@ data:
           "targets": [{
             "expr": "smartbiz_articles_total",
             "refId": "A",
-            "datasource": {"type": "prometheus", "uid": "Prometheus"}
+            "datasource": {"type": "prometheus", "uid": "Prometheus"},
+            "legendFormat": "Total Articles"
           }],
           "fieldConfig": {
             "defaults": {
@@ -916,7 +917,8 @@ data:
           "targets": [{
             "expr": "smartbiz_customers_total",
             "refId": "A",
-            "datasource": {"type": "prometheus", "uid": "Prometheus"}
+            "datasource": {"type": "prometheus", "uid": "Prometheus"},
+            "legendFormat": "Total Customers"
           }],
           "fieldConfig": {
             "defaults": {
@@ -943,7 +945,8 @@ data:
           "targets": [{
             "expr": "smartbiz_orders_total",
             "refId": "A",
-            "datasource": {"type": "prometheus", "uid": "Prometheus"}
+            "datasource": {"type": "prometheus", "uid": "Prometheus"},
+            "legendFormat": "Total Orders"
           }],
           "fieldConfig": {
             "defaults": {
@@ -970,7 +973,8 @@ data:
           "targets": [{
             "expr": "smartbiz_revenue_total",
             "refId": "A",
-            "datasource": {"type": "prometheus", "uid": "Prometheus"}
+            "datasource": {"type": "prometheus", "uid": "Prometheus"},
+            "legendFormat": "Total Revenue"
           }],
           "fieldConfig": {
             "defaults": {
@@ -998,7 +1002,8 @@ data:
           "targets": [{
             "expr": "smartbiz_orders_today",
             "refId": "A",
-            "datasource": {"type": "prometheus", "uid": "Prometheus"}
+            "datasource": {"type": "prometheus", "uid": "Prometheus"},
+            "legendFormat": "Orders Today"
           }],
           "fieldConfig": {
             "defaults": {
