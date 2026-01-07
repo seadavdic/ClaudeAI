@@ -39,22 +39,15 @@ spec:
       storageClass: local-path
       size: 5Gi
 
-    # Kafka configuration
-    config: |
-      # Log retention - keep messages for 7 days
+    # Kafka configuration - use extraConfig instead of config
+    extraConfig: |
       log.retention.hours=168
       log.retention.bytes=1073741824
-      # Segment size - 100MB
       log.segment.bytes=104857600
-      # Cleanup policy
       log.cleanup.policy=delete
-      # Compression
       compression.type=snappy
-      # Auto create topics
       auto.create.topics.enable=true
-      # Default replication factor
       default.replication.factor=1
-      # Min in-sync replicas
       min.insync.replicas=1
 
     # Listeners
