@@ -21,6 +21,11 @@ spec:
     kraft:
       enabled: false
 
+    # Disable authentication to simplify deployment
+    auth:
+      clientProtocol: plaintext
+      interBrokerProtocol: plaintext
+
     # Kafka configuration - use extraConfig instead of config
     extraConfig: |
       log.retention.hours=168
