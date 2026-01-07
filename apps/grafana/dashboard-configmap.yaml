@@ -975,7 +975,7 @@ data:
           "fieldConfig": {
             "defaults": {
               "color": {"mode": "thresholds"},
-              "unit": "currencyUSD",
+              "unit": "currencyEUR",
               "thresholds": {
                 "mode": "absolute",
                 "steps": [

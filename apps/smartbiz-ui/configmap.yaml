@@ -146,7 +146,7 @@ data:
                     </div>
                     <div class="stat-card">
                         <h3>Total Revenue</h3>
-                        <p id="statRevenue" class="stat-value">$0.00</p>
+                        <p id="statRevenue" class="stat-value">€0.00</p>
                     </div>
                 </div>
             </div>
@@ -516,7 +516,7 @@ data:
                 <div class="item-card">
                     <h4>${article.name}</h4>
                     <p><strong>Category:</strong> ${article.category}</p>
-                    <p><strong>Price:</strong> $${article.price.toFixed(2)}</p>
+                    <p><strong>Price:</strong> €${article.price.toFixed(2)}</p>
                     <p><strong>Stock:</strong> ${article.stock}</p>
                     <p>${article.description}</p>
                 </div>
@@ -597,7 +597,7 @@ data:
 
             const select = document.getElementById('orderArticle');
             select.innerHTML = '<option value="">Select Article</option>' +
-                articles.map(a => `<option value="${a.id}">${a.name} - $${a.price.toFixed(2)} (Stock: ${a.stock})</option>`).join('');
+                articles.map(a => `<option value="${a.id}">${a.name} - €${a.price.toFixed(2)} (Stock: ${a.stock})</option>`).join('');
         } catch (error) {
             console.error('Error loading articles:', error);
         }
@@ -644,7 +644,7 @@ data:
                     <p><strong>Customer ID:</strong> ${order.customer_id}</p>
                     <p><strong>Article ID:</strong> ${order.article_id}</p>
                     <p><strong>Quantity:</strong> ${order.quantity}</p>
-                    <p><strong>Total:</strong> $${order.total_price.toFixed(2)}</p>
+                    <p><strong>Total:</strong> €${order.total_price.toFixed(2)}</p>
                     <p><strong>Status:</strong> ${order.status}</p>
                 </div>
             `).join('');
@@ -662,7 +662,7 @@ data:
             document.getElementById('statArticles').textContent = stats.total_articles;
             document.getElementById('statCustomers').textContent = stats.total_customers;
             document.getElementById('statOrders').textContent = stats.total_orders;
-            document.getElementById('statRevenue').textContent = '$' + stats.total_revenue.toFixed(2);
+            document.getElementById('statRevenue').textContent = '€' + stats.total_revenue.toFixed(2);
         } catch (error) {
             showNotification('Error loading dashboard: ' + error.message, true);
         }

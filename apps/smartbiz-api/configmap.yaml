@@ -97,8 +97,13 @@ data:
         created_at = Column(DateTime, default=datetime.utcnow)
         customer = relationship("Customer", back_populates="orders")
 
-    # Create tables
-    Base.metadata.create_all(bind=engine)
+    # Create tables (only if they don't exist - uses CREATE TABLE IF NOT EXISTS)
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("Database tables created/verified successfully")
+    except Exception as e:
+        print(f"Error creating tables: {e}")
+        raise
 
     # Pydantic models
     class ArticleCreate(BaseModel):
