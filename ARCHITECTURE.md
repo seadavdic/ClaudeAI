@@ -960,7 +960,11 @@ yourname/ClaudeAI/
   🔒 Security
   ├─ cert-manager (automatic SSL certificates)
   ├─ OAuth2 Proxy (authentication)
-  ├─ Vault (secrets management)
+  ├─ Secrets Management
+  │  ├─ Kubernetes Secrets (base64-encoded, basic protection)
+  │  ├─ Sealed Secrets (encrypted, GitOps-safe)
+  │  ├─ HashiCorp Vault (enterprise-grade, dynamic secrets)
+  │  └─ External Secrets Operator (sync from external stores)
   └─ Network Policies (pod firewall)
 
   🚀 CI/CD Pipeline
