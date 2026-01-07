@@ -10,7 +10,7 @@ This repository contains a fully functional Kubernetes cluster with:
 - **k3s Kubernetes** (v1.34.3) on 2x Raspberry Pi 4B (ARMv7)
 - **Flux CD** - GitOps continuous deployment
 - **Traefik** - Ingress controller with hostname-based routing
-- **MetalLB** - LoadBalancer (IP pool: 192.168.178.210-230)
+- **MetalLB** - LoadBalancer (IP pool: <ip-range>)
 - **Cloudflare Tunnel** - Secure public access without port forwarding
 
 ### 📊 Observability Stack
@@ -29,6 +29,14 @@ This repository contains a fully functional Kubernetes cluster with:
   - Business metrics & Grafana dashboards
   - Public access via Cloudflare Tunnel
 
+- **Order Pipeline** - Event-driven microservices demo
+  - RabbitMQ message broker with fanout exchanges
+  - Order Generator (simulates customer orders)
+  - Payment Service (90% success rate)
+  - Fulfillment Service (creates shipments)
+  - Notification Service (multi-topic consumer)
+  - Prometheus metrics & Grafana dashboards
+
 ### 🧪 Demo Applications
 - **Metrics Generator** - Python app generating web server metrics
 - **Log Generator** - Multi-level structured logging demo
@@ -40,7 +48,7 @@ This repository contains a fully functional Kubernetes cluster with:
 ### Prerequisites
 - 2x Raspberry Pi 4B (ARMv7)
 - Raspbian GNU/Linux 10 (Buster)
-- Static IPs configured (192.168.178.100, 192.168.178.101)
+- Static IPs configured (<node-ip-1>, <node-ip-2>)
 
 ### Installation
 
@@ -77,6 +85,7 @@ This repository contains a fully functional Kubernetes cluster with:
 - **Grafana:** http://grafana.local:30683
 - **Prometheus:** http://prometheus.local:30683
 - **SmartBiz:** http://smartbiz.local:30683
+- **RabbitMQ Management:** http://rabbitmq.local:30683
 - **AlertManager:** http://alertmanager.local:30683
 
 ### External Access (Cloudflare Tunnel)
@@ -86,11 +95,12 @@ This repository contains a fully functional Kubernetes cluster with:
 ### Hosts File Configuration
 Add to `C:\Windows\System32\drivers\etc\hosts`:
 ```
-192.168.178.100 grafana.local
-192.168.178.100 prometheus.local
-192.168.178.100 smartbiz.local
-192.168.178.100 api.local
-192.168.178.100 alertmanager.local
+<cluster-ip> grafana.local
+<cluster-ip> prometheus.local
+<cluster-ip> smartbiz.local
+<cluster-ip> rabbitmq.local
+<cluster-ip> api.local
+<cluster-ip> alertmanager.local
 ```
 
 ## 📚 Documentation
@@ -98,6 +108,7 @@ Add to `C:\Windows\System32\drivers\etc\hosts`:
 - **[Architecture Overview](ARCHITECTURE.md)** - Complete system architecture with diagrams
 - **[Installation Guide](docs/INSTALLATION-GUIDE.md)** - k3s cluster setup
 - **[SmartBiz Application](docs/SMARTBIZ.md)** - Full-stack app documentation
+- **[RabbitMQ Pipeline](docs/RABBITMQ-PIPELINE.md)** - Event-driven order processing
 - **[Loki Setup](docs/LOKI-SETUP-SUMMARY.md)** - Log aggregation configuration
 - **[AlertManager Setup](docs/ALERTMANAGER-SETUP-SUMMARY.md)** - Alerting configuration
 
@@ -111,6 +122,8 @@ Add to `C:\Windows\System32\drivers\etc\hosts`:
 │   ├── loki/                      # Loki log aggregation
 │   ├── metallb/                   # LoadBalancer
 │   ├── cloudflared/               # Cloudflare Tunnel
+│   ├── rabbitmq/                  # RabbitMQ message broker
+│   ├── order-pipeline/            # Event-driven order services
 │   ├── smartbiz-db/               # PostgreSQL database
 │   ├── smartbiz-api/              # FastAPI backend
 │   ├── smartbiz-ui/               # Nginx + SPA frontend
@@ -127,6 +140,7 @@ Add to `C:\Windows\System32\drivers\etc\hosts`:
 │
 ├── docs/                          # Documentation
 │   ├── SMARTBIZ.md               # SmartBiz app guide
+│   ├── RABBITMQ-PIPELINE.md      # Order processing pipeline
 │   ├── INSTALLATION-GUIDE.md     # Cluster installation
 │   ├── LOKI-SETUP-SUMMARY.md     # Logging setup
 │   └── ALERTMANAGER-SETUP-SUMMARY.md  # Alerting setup
@@ -144,6 +158,7 @@ Add to `C:\Windows\System32\drivers\etc\hosts`:
 - **Storage:** local-path provisioner
 - **Monitoring:** Prometheus + Grafana
 - **Logging:** Loki + Promtail
+- **Message Broker:** RabbitMQ 3.13-management
 - **Databases:** PostgreSQL 15 Alpine
 - **Backend:** FastAPI (Python 3.9)
 - **Frontend:** Vanilla JavaScript + Nginx
@@ -163,10 +178,11 @@ Add to `C:\Windows\System32\drivers\etc\hosts`:
 ## 📈 System Stats
 
 - **Cluster Nodes:** 2x Raspberry Pi 4B
-- **Running Pods:** ~30+ across 8 namespaces
-- **Applications Deployed:** 15+
-- **Metrics Collected:** 50+ time-series
+- **Running Pods:** ~35+ across 10 namespaces
+- **Applications Deployed:** 20+
+- **Metrics Collected:** 100+ time-series
 - **Log Streams:** All pods
+- **Message Throughput:** ~0.1-0.5 orders/second
 - **Uptime:** High availability with pod restart policies
 
 ## 🤝 Contributing

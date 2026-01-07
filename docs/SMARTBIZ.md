@@ -188,7 +188,7 @@ kubectl logs -n smartbiz -l app=cloudflared-smartbiz | grep trycloudflare.com
 **Local Network (NodePort):**
 ```
 http://smartbiz.local:30683
-http://192.168.178.100:30683  (direct node IP)
+http://<cluster-ip>:30683  (direct node IP)
 ```
 
 ### Common Operations

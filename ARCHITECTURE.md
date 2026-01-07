@@ -1016,7 +1016,7 @@ yourname/ClaudeAI/
   │                                                                │
   │  Credentials:                                                  │
   │  ├─ User: admin                                               │
-  │  └─ Pass: admin123                                            │
+  │  └─ Pass: ***                                                 │
   │                                                                │
   │  Resources:                                                    │
   │  ├─ CPU: 250m request, 1000m limit                            │
@@ -1422,7 +1422,7 @@ yourname/ClaudeAI/
   🐰 RabbitMQ Management UI
   ┌──────────────────────────────────────────────────────────────┐
   │  URL: http://rabbitmq.local:30683                           │
-  │  Login: admin / admin123                                    │
+  │  Login: admin / ***                                         │
   │                                                              │
   │  Features:                                                   │
   │  ├─ Overview: Connections, channels, queues, messages/sec   │
@@ -1433,7 +1433,7 @@ yourname/ClaudeAI/
   │  └─ Admin: User management, vhosts, policies                │
   │                                                              │
   │  Note: Add to Windows hosts file:                           │
-  │  192.168.178.210 rabbitmq.local                             │
+  │  <cluster-ip> rabbitmq.local                                │
   └──────────────────────────────────────────────────────────────┘
 
   📊 Grafana Dashboard

@@ -81,7 +81,7 @@ Local: http://alertmanager.local:30683
 
 Add to your hosts file:
 ```
-192.168.1.100 alertmanager.local
+<cluster-ip> alertmanager.local
 ```
 
 **Features**:

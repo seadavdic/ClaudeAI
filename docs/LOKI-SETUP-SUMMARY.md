@@ -105,7 +105,7 @@ kubectl get pods -n batch-job
 ### 3. **Test REST API** (Add to hosts file first!)
 ```powershell
 # Add to C:\Windows\System32\drivers\etc\hosts
-192.168.1.100 api.local
+<cluster-ip> api.local
 ```
 
 Then test:

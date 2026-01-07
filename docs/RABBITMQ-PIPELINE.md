@@ -217,7 +217,7 @@ All queues are **durable** (survive RabbitMQ restarts) and use **manual acknowle
 - **RabbitMQ**: 3.13-management-alpine
   - Host: `rabbitmq.rabbitmq.svc.cluster.local`
   - Port: 5672 (AMQP)
-  - Credentials: admin/admin123
+  - Credentials: admin/***
   - Heartbeat: 600s
   - Connection timeout: 300s
 
@@ -314,11 +314,11 @@ Access the "RabbitMQ & Order Pipeline" dashboard at:
 Access the RabbitMQ management interface:
 - URL: `http://rabbitmq.local:30683`
 - Username: `admin`
-- Password: `admin123`
+- Password: `***`
 
 **Note**: Add to hosts file (as Administrator):
 ```powershell
-echo '192.168.178.210 rabbitmq.local' | Out-File -Append -Encoding ASCII C:\Windows\System32\drivers\etc\hosts
+echo '<cluster-ip> rabbitmq.local' | Out-File -Append -Encoding ASCII C:\Windows\System32\drivers\etc\hosts
 ```
 
 **Features**:
@@ -364,7 +364,7 @@ kubectl describe pod -n order-pipeline <pod-name>
 **Common Causes**:
 1. RabbitMQ not ready - Wait for rabbitmq pod to be Running
 2. Connection refused - Check RabbitMQ service is accessible
-3. Authentication failed - Verify credentials (admin/admin123)
+3. Authentication failed - Verify credentials (admin/***)
 
 ### No Messages Processing
 
