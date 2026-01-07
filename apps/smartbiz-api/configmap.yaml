@@ -135,6 +135,37 @@ data:
         allow_headers=["*"],
     )
 
+    # Initialize metrics from database on startup
+    @app.on_event("startup")
+    async def initialize_metrics():
+        """Initialize all metrics from database when pod starts"""
+        db = SessionLocal()
+        try:
+            # Count totals from database
+            total_articles = db.query(Article).count()
+            total_customers = db.query(Customer).count()
+            total_orders = db.query(Order).count()
+            total_revenue = db.query(func.sum(Order.total_price)).scalar() or 0
+            total_orders_today = db.query(Order).filter(
+                func.date(Order.created_at) == datetime.utcnow().date()
+            ).count()
+
+            # Initialize gauges (can be set directly)
+            articles_total.set(total_articles)
+            customers_total.set(total_customers)
+            orders_today.set(total_orders_today)
+
+            # Initialize counters (need to set internal value since counters can't be set)
+            # Access the internal _value attribute to set counter to database value
+            orders_total._value.set(float(total_orders))
+            revenue_total._value.set(float(total_revenue))
+
+            logger.info(f"Metrics initialized on startup: articles={total_articles}, customers={total_customers}, orders={total_orders}, revenue={total_revenue:.2f}, orders_today={total_orders_today}")
+        except Exception as e:
+            logger.error(f"Error initializing metrics: {e}")
+        finally:
+            db.close()
+
     # Middleware for metrics and logging
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
