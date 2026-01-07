@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: smartbiz-api
+  namespace: smartbiz
+  labels:
+    app: smartbiz-api
+spec:
+  selector:
+    app: smartbiz-api
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http
+  type: ClusterIP

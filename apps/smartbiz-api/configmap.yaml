@@ -1,0 +1,325 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: smartbiz-api-code
+  namespace: smartbiz
+data:
+  requirements.txt: |
+    fastapi==0.104.1
+    uvicorn==0.24.0
+    sqlalchemy==2.0.23
+    psycopg2-binary==2.9.9
+    prometheus-client==0.19.0
+    pydantic==2.5.2
+
+  main.py: |
+    from fastapi import FastAPI, HTTPException, Request
+    from fastapi.middleware.cors import CORSMiddleware
+    from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Text
+    from sqlalchemy.ext.declarative import declarative_base
+    from sqlalchemy.orm import sessionmaker, Session, relationship
+    from pydantic import BaseModel
+    from datetime import datetime
+    from typing import List, Optional
+    import os
+    import logging
+    import json
+    from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+    from fastapi.responses import Response
+    import time
+    import random
+
+    # Logging setup
+    class JSONFormatter(logging.Formatter):
+        def format(self, record):
+            log_obj = {
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "level": record.levelname,
+                "service": "smartbiz-api",
+                "message": record.getMessage()
+            }
+            if hasattr(record, 'extra'):
+                log_obj.update(record.extra)
+            return json.dumps(log_obj)
+
+    logger = logging.getLogger('smartbiz-api')
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler()
+    handler.setFormatter(JSONFormatter())
+    logger.addHandler(handler)
+
+    # Prometheus metrics
+    request_count = Counter('smartbiz_requests_total', 'Total requests', ['method', 'endpoint', 'status'])
+    request_duration = Histogram('smartbiz_request_duration_seconds', 'Request duration', ['method', 'endpoint'])
+
+    articles_total = Gauge('smartbiz_articles_total', 'Total number of articles')
+    customers_total = Gauge('smartbiz_customers_total', 'Total number of customers')
+    orders_total = Counter('smartbiz_orders_total', 'Total number of orders created')
+    orders_today = Gauge('smartbiz_orders_today', 'Orders created today')
+    revenue_total = Counter('smartbiz_revenue_total', 'Total revenue')
+
+    # Database setup
+    DATABASE_URL = f"postgresql://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}@postgres.smartbiz.svc.cluster.local:5432/{os.getenv('POSTGRES_DB')}"
+
+    engine = create_engine(DATABASE_URL)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base = declarative_base()
+
+    # Database Models
+    class Article(Base):
+        __tablename__ = "articles"
+        id = Column(Integer, primary_key=True, index=True)
+        name = Column(String, index=True)
+        description = Column(Text)
+        price = Column(Float)
+        category = Column(String)
+        stock = Column(Integer)
+        created_at = Column(DateTime, default=datetime.utcnow)
+
+    class Customer(Base):
+        __tablename__ = "customers"
+        id = Column(Integer, primary_key=True, index=True)
+        name = Column(String, index=True)
+        email = Column(String, unique=True, index=True)
+        phone = Column(String)
+        address = Column(Text)
+        created_at = Column(DateTime, default=datetime.utcnow)
+        orders = relationship("Order", back_populates="customer")
+
+    class Order(Base):
+        __tablename__ = "orders"
+        id = Column(Integer, primary_key=True, index=True)
+        customer_id = Column(Integer, ForeignKey("customers.id"))
+        article_id = Column(Integer, ForeignKey("articles.id"))
+        quantity = Column(Integer)
+        total_price = Column(Float)
+        status = Column(String, default="pending")
+        created_at = Column(DateTime, default=datetime.utcnow)
+        customer = relationship("Customer", back_populates="orders")
+
+    # Create tables
+    Base.metadata.create_all(bind=engine)
+
+    # Pydantic models
+    class ArticleCreate(BaseModel):
+        name: str
+        description: str
+        price: float
+        category: str
+        stock: int
+
+    class CustomerCreate(BaseModel):
+        name: str
+        email: str
+        phone: str
+        address: str
+
+    class OrderCreate(BaseModel):
+        customer_id: int
+        article_id: int
+        quantity: int
+
+    # FastAPI app
+    app = FastAPI(title="SmartBiz API")
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # Middleware for metrics and logging
+    @app.middleware("http")
+    async def log_requests(request: Request, call_next):
+        start_time = time.time()
+        response = await call_next(request)
+        duration = time.time() - start_time
+
+        request_count.labels(
+            method=request.method,
+            endpoint=request.url.path,
+            status=response.status_code
+        ).inc()
+
+        request_duration.labels(
+            method=request.method,
+            endpoint=request.url.path
+        ).observe(duration)
+
+        logger.info(f"{request.method} {request.url.path} {response.status_code}",
+                   extra={'duration': duration, 'status': response.status_code})
+
+        return response
+
+    def get_db():
+        db = SessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    # AI Assistant endpoints
+    @app.post("/ai/suggest-category")
+    async def suggest_category(article_name: str):
+        """AI-powered category suggestion based on article name"""
+        categories = {
+            "laptop": "Electronics", "phone": "Electronics", "tablet": "Electronics",
+            "shirt": "Clothing", "pants": "Clothing", "shoes": "Clothing",
+            "book": "Books", "novel": "Books",
+            "chair": "Furniture", "table": "Furniture", "desk": "Furniture",
+            "apple": "Food", "bread": "Food", "milk": "Food"
+        }
+
+        article_lower = article_name.lower()
+        for keyword, category in categories.items():
+            if keyword in article_lower:
+                return {"suggested_category": category, "confidence": 0.9}
+
+        return {"suggested_category": "General", "confidence": 0.5}
+
+    @app.post("/ai/validate-email")
+    async def validate_email(email: str):
+        """AI-powered email validation"""
+        import re
+        pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+        is_valid = bool(re.match(pattern, email))
+        return {"is_valid": is_valid, "suggestion": email.lower() if is_valid else None}
+
+    # Article endpoints
+    @app.post("/articles")
+    async def create_article(article: ArticleCreate):
+        db = next(get_db())
+        db_article = Article(**article.dict())
+        db.add(db_article)
+        db.commit()
+        db.refresh(db_article)
+
+        articles_total.set(db.query(Article).count())
+        logger.info(f"Article created: {article.name}")
+
+        return db_article
+
+    @app.get("/articles")
+    async def list_articles():
+        db = next(get_db())
+        articles = db.query(Article).all()
+        return articles
+
+    @app.get("/articles/{article_id}")
+    async def get_article(article_id: int):
+        db = next(get_db())
+        article = db.query(Article).filter(Article.id == article_id).first()
+        if not article:
+            raise HTTPException(status_code=404, detail="Article not found")
+        return article
+
+    # Customer endpoints
+    @app.post("/customers")
+    async def create_customer(customer: CustomerCreate):
+        db = next(get_db())
+        db_customer = Customer(**customer.dict())
+        db.add(db_customer)
+        db.commit()
+        db.refresh(db_customer)
+
+        customers_total.set(db.query(Customer).count())
+        logger.info(f"Customer created: {customer.name}")
+
+        return db_customer
+
+    @app.get("/customers")
+    async def list_customers():
+        db = next(get_db())
+        customers = db.query(Customer).all()
+        return customers
+
+    @app.get("/customers/{customer_id}")
+    async def get_customer(customer_id: int):
+        db = next(get_db())
+        customer = db.query(Customer).filter(Customer.id == customer_id).first()
+        if not customer:
+            raise HTTPException(status_code=404, detail="Customer not found")
+        return customer
+
+    # Order endpoints
+    @app.post("/orders")
+    async def create_order(order: OrderCreate):
+        db = next(get_db())
+
+        article = db.query(Article).filter(Article.id == order.article_id).first()
+        if not article:
+            raise HTTPException(status_code=404, detail="Article not found")
+
+        if article.stock < order.quantity:
+            raise HTTPException(status_code=400, detail="Insufficient stock")
+
+        total_price = article.price * order.quantity
+
+        db_order = Order(
+            customer_id=order.customer_id,
+            article_id=order.article_id,
+            quantity=order.quantity,
+            total_price=total_price
+        )
+
+        article.stock -= order.quantity
+
+        db.add(db_order)
+        db.commit()
+        db.refresh(db_order)
+
+        orders_total.inc()
+        revenue_total.inc(total_price)
+
+        # Update today's orders
+        today = datetime.utcnow().date()
+        today_orders = db.query(Order).filter(
+            Order.created_at >= datetime.combine(today, datetime.min.time())
+        ).count()
+        orders_today.set(today_orders)
+
+        logger.info(f"Order created: {db_order.id}, total: ${total_price}")
+
+        return db_order
+
+    @app.get("/orders")
+    async def list_orders():
+        db = next(get_db())
+        orders = db.query(Order).all()
+        return orders
+
+    @app.get("/orders/{order_id}")
+    async def get_order(order_id: int):
+        db = next(get_db())
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        return order
+
+    # Stats endpoint
+    @app.get("/stats")
+    async def get_stats():
+        db = next(get_db())
+        return {
+            "total_articles": db.query(Article).count(),
+            "total_customers": db.query(Customer).count(),
+            "total_orders": db.query(Order).count(),
+            "total_revenue": db.query(Order).with_entities(
+                sqlalchemy.func.sum(Order.total_price)
+            ).scalar() or 0
+        }
+
+    # Prometheus metrics endpoint
+    @app.get("/metrics")
+    async def metrics():
+        return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+    @app.get("/health")
+    async def health():
+        return {"status": "healthy"}
+
+    if __name__ == "__main__":
+        import uvicorn
+        uvicorn.run(app, host="0.0.0.0", port=8000)
