@@ -171,7 +171,7 @@ data:
 
     # Metrics
     payments_processed = Counter('payments_processed_total', 'Payments processed', ['status'])
-    payment_duration = Histogram('payment_duration_seconds', 'Payment processing time')
+    payment_duration = Histogram('payment_processing_duration_seconds', 'Payment processing time')
     payment_amount = Counter('payment_amount_total', 'Total payment amount', ['status'])
 
     def process_payment(order):
@@ -240,13 +240,15 @@ data:
         channel.exchange_declare(exchange='orders', exchange_type='fanout', durable=True)
         channel.exchange_declare(exchange='payments', exchange_type='fanout', durable=True)
 
-        # Declare and bind queue
-        result = channel.queue_declare(queue='', exclusive=True)
-        queue_name = result.method.queue
+        # Declare and bind queue with explicit name
+        queue_name = 'payment_processor_queue'
+        channel.queue_declare(queue=queue_name, durable=True)
         channel.queue_bind(exchange='orders', queue=queue_name)
 
         channel.basic_qos(prefetch_count=1)
         channel.basic_consume(queue=queue_name, on_message_callback=callback)
+
+        logger.info(f"Consuming from queue: {queue_name}")
 
         logger.info("Waiting for orders...")
         channel.start_consuming()
@@ -270,7 +272,7 @@ data:
 
     # Metrics
     shipments_created = Counter('shipments_created_total', 'Shipments created')
-    fulfillment_duration = Histogram('fulfillment_duration_seconds', 'Fulfillment processing time')
+    fulfillment_duration = Histogram('fulfillment_processing_duration_seconds', 'Fulfillment processing time')
 
     def create_shipment(payment):
         """Create shipment for successful payment"""
@@ -337,13 +339,15 @@ data:
         channel.exchange_declare(exchange='payments', exchange_type='fanout', durable=True)
         channel.exchange_declare(exchange='shipments', exchange_type='fanout', durable=True)
 
-        # Declare and bind queue
-        result = channel.queue_declare(queue='', exclusive=True)
-        queue_name = result.method.queue
+        # Declare and bind queue with explicit name
+        queue_name = 'fulfillment_processor_queue'
+        channel.queue_declare(queue=queue_name, durable=True)
         channel.queue_bind(exchange='payments', queue=queue_name)
 
         channel.basic_qos(prefetch_count=1)
         channel.basic_consume(queue=queue_name, on_message_callback=callback)
+
+        logger.info(f"Consuming from queue: {queue_name}")
 
         logger.info("Waiting for payments...")
         channel.start_consuming()
@@ -391,11 +395,16 @@ data:
         logger.info(f"Sending {notification_type} to {customer}: {message}")
         notifications_sent.labels(type=notification_type, topic=topic).inc()
 
-    def consume_queue(channel, exchange, topic):
-        """Consume messages from a specific exchange"""
+    def consume_queue(exchange, topic):
+        """Consume messages from a specific exchange - each thread gets its own connection"""
+        connection = get_rabbitmq_connection()
+        channel = connection.channel()
+
         channel.exchange_declare(exchange=exchange, exchange_type='fanout', durable=True)
-        result = channel.queue_declare(queue='', exclusive=True)
-        queue_name = result.method.queue
+
+        # Use explicit queue name for better visibility
+        queue_name = f'notifications_{exchange}_queue'
+        channel.queue_declare(queue=queue_name, durable=True)
         channel.queue_bind(exchange=exchange, queue=queue_name)
 
         def callback(ch, method, properties, body):
@@ -407,17 +416,16 @@ data:
                 logger.error(f"Error sending notification: {e}")
                 ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
+        channel.basic_qos(prefetch_count=1)
         channel.basic_consume(queue=queue_name, on_message_callback=callback)
-        logger.info(f"Consuming from {exchange}...")
+        logger.info(f"Consuming from {exchange} (queue: {queue_name})...")
         channel.start_consuming()
 
     def main():
         start_http_server(8003)
         logger.info("Notification Service started - Prometheus metrics at :8003")
 
-        connection = get_rabbitmq_connection()
-
-        # Create separate channels for each exchange
+        # Create separate connections for each exchange (thread-safe)
         topics = [
             ('orders', 'orders'),
             ('payments', 'payments'),
@@ -426,11 +434,12 @@ data:
 
         threads = []
         for exchange, topic in topics:
-            channel = connection.channel()
-            thread = threading.Thread(target=consume_queue, args=(channel, exchange, topic))
+            thread = threading.Thread(target=consume_queue, args=(exchange, topic))
             thread.daemon = True
             thread.start()
             threads.append(thread)
+
+        logger.info("All notification consumers started")
 
         # Wait for all threads
         for thread in threads:

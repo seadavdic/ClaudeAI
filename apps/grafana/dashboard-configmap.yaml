@@ -1145,7 +1145,8 @@ data:
           "targets": [{
             "expr": "sum(rabbitmq_queue_messages)",
             "refId": "A",
-            "datasource": {"type": "prometheus", "uid": "Prometheus"}
+            "datasource": {"type": "prometheus", "uid": "Prometheus"},
+            "legendFormat": "Total Messages"
           }],
           "fieldConfig": {
             "defaults": {
@@ -1174,7 +1175,8 @@ data:
           "targets": [{
             "expr": "sum(rabbitmq_queue_messages_ready)",
             "refId": "A",
-            "datasource": {"type": "prometheus", "uid": "Prometheus"}
+            "datasource": {"type": "prometheus", "uid": "Prometheus"},
+            "legendFormat": "Ready to Process"
           }],
           "fieldConfig": {
             "defaults": {
@@ -1201,7 +1203,8 @@ data:
           "targets": [{
             "expr": "sum(rabbitmq_queue_messages_unacked)",
             "refId": "A",
-            "datasource": {"type": "prometheus", "uid": "Prometheus"}
+            "datasource": {"type": "prometheus", "uid": "Prometheus"},
+            "legendFormat": "Being Processed"
           }],
           "fieldConfig": {
             "defaults": {
@@ -1230,7 +1233,8 @@ data:
           "targets": [{
             "expr": "sum(rabbitmq_queue_consumers)",
             "refId": "A",
-            "datasource": {"type": "prometheus", "uid": "Prometheus"}
+            "datasource": {"type": "prometheus", "uid": "Prometheus"},
+            "legendFormat": "Active Consumers"
           }],
           "fieldConfig": {
             "defaults": {
@@ -1256,7 +1260,7 @@ data:
           "type": "timeseries",
           "gridPos": {"h": 8, "w": 12, "x": 0, "y": 7},
           "targets": [{
-            "expr": "rabbitmq_queue_messages{queue=~\".*\"}",
+            "expr": "rabbitmq_queue_messages{queue=~\".*_queue\"}",
             "refId": "A",
             "datasource": {"type": "prometheus", "uid": "Prometheus"},
             "legendFormat": "{{queue}}"
@@ -1385,7 +1389,8 @@ data:
           "targets": [{
             "expr": "orders_generated_total",
             "refId": "A",
-            "datasource": {"type": "prometheus", "uid": "Prometheus"}
+            "datasource": {"type": "prometheus", "uid": "Prometheus"},
+            "legendFormat": "Orders Generated"
           }],
           "fieldConfig": {
             "defaults": {
@@ -1412,7 +1417,8 @@ data:
           "targets": [{
             "expr": "sum(payments_processed_total)",
             "refId": "A",
-            "datasource": {"type": "prometheus", "uid": "Prometheus"}
+            "datasource": {"type": "prometheus", "uid": "Prometheus"},
+            "legendFormat": "Payments Processed"
           }],
           "fieldConfig": {
             "defaults": {
@@ -1439,7 +1445,8 @@ data:
           "targets": [{
             "expr": "shipments_created_total",
             "refId": "A",
-            "datasource": {"type": "prometheus", "uid": "Prometheus"}
+            "datasource": {"type": "prometheus", "uid": "Prometheus"},
+            "legendFormat": "Shipments Created"
           }],
           "fieldConfig": {
             "defaults": {
@@ -1464,9 +1471,10 @@ data:
           "type": "stat",
           "gridPos": {"h": 6, "w": 6, "x": 18, "y": 24},
           "targets": [{
-            "expr": "notifications_sent_total",
+            "expr": "sum(notifications_sent_total)",
             "refId": "A",
-            "datasource": {"type": "prometheus", "uid": "Prometheus"}
+            "datasource": {"type": "prometheus", "uid": "Prometheus"},
+            "legendFormat": "Notifications Sent"
           }],
           "fieldConfig": {
             "defaults": {
@@ -1587,7 +1595,8 @@ data:
           "targets": [{
             "expr": "sum(payment_amount_total)",
             "refId": "A",
-            "datasource": {"type": "prometheus", "uid": "Prometheus"}
+            "datasource": {"type": "prometheus", "uid": "Prometheus"},
+            "legendFormat": "Total Revenue"
           }],
           "fieldConfig": {
             "defaults": {
