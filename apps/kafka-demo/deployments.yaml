@@ -1,0 +1,198 @@
+---
+# Producer - Sends events to Kafka
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-producer
+  namespace: kafka-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-producer
+  template:
+    metadata:
+      labels:
+        app: kafka-producer
+    spec:
+      containers:
+      - name: producer
+        image: python:3.9-slim
+        command:
+          - sh
+          - -c
+          - |
+            pip install -r /app/requirements.txt && python /app/producer.py
+        volumeMounts:
+        - name: code
+          mountPath: /app
+        ports:
+        - containerPort: 8000
+          name: metrics
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 50m
+            memory: 128Mi
+      volumes:
+      - name: code
+        configMap:
+          name: kafka-demo-code
+
+---
+# Consumer Group 1 - Order Processing (load balanced)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-consumer-orders
+  namespace: kafka-demo
+spec:
+  replicas: 2  # Multiple replicas = load balancing within group
+  selector:
+    matchLabels:
+      app: kafka-consumer-orders
+  template:
+    metadata:
+      labels:
+        app: kafka-consumer-orders
+    spec:
+      containers:
+      - name: consumer
+        image: python:3.9-slim
+        command:
+          - sh
+          - -c
+          - |
+            pip install -r /app/requirements.txt && python /app/consumer.py
+        env:
+        - name: CONSUMER_GROUP
+          value: "order-processing-group"
+        - name: TOPICS
+          value: "smartbiz-order-created,smartbiz-payment-processed"
+        - name: AUTO_OFFSET_RESET
+          value: "latest"
+        - name: METRICS_PORT
+          value: "8001"
+        volumeMounts:
+        - name: code
+          mountPath: /app
+        ports:
+        - containerPort: 8001
+          name: metrics
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 50m
+            memory: 128Mi
+      volumes:
+      - name: code
+        configMap:
+          name: kafka-demo-code
+
+---
+# Consumer Group 2 - Analytics (reads same events independently)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-consumer-analytics
+  namespace: kafka-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-consumer-analytics
+  template:
+    metadata:
+      labels:
+        app: kafka-consumer-analytics
+    spec:
+      containers:
+      - name: consumer
+        image: python:3.9-slim
+        command:
+          - sh
+          - -c
+          - |
+            pip install -r /app/requirements.txt && python /app/consumer.py
+        env:
+        - name: CONSUMER_GROUP
+          value: "analytics-group"
+        - name: TOPICS
+          value: "smartbiz-order-created,smartbiz-stock-updated"
+        - name: AUTO_OFFSET_RESET
+          value: "latest"
+        - name: METRICS_PORT
+          value: "8002"
+        volumeMounts:
+        - name: code
+          mountPath: /app
+        ports:
+        - containerPort: 8002
+          name: metrics
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 50m
+            memory: 128Mi
+      volumes:
+      - name: code
+        configMap:
+          name: kafka-demo-code
+
+---
+# Consumer Group 3 - Replay Consumer (reads from beginning)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-consumer-replay
+  namespace: kafka-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-consumer-replay
+  template:
+    metadata:
+      labels:
+        app: kafka-consumer-replay
+    spec:
+      containers:
+      - name: consumer
+        image: python:3.9-slim
+        command:
+          - sh
+          - -c
+          - |
+            pip install -r /app/requirements.txt && python /app/consumer.py
+        env:
+        - name: CONSUMER_GROUP
+          value: "replay-group"
+        - name: TOPICS
+          value: "smartbiz-order-created"
+        - name: AUTO_OFFSET_RESET
+          value: "earliest"  # Read from beginning!
+        - name: METRICS_PORT
+          value: "8003"
+        volumeMounts:
+        - name: code
+          mountPath: /app
+        ports:
+        - containerPort: 8003
+          name: metrics
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 50m
+            memory: 128Mi
+      volumes:
+      - name: code
+        configMap:
+          name: kafka-demo-code
