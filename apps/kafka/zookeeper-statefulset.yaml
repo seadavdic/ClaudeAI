@@ -35,7 +35,7 @@ spec:
     spec:
       containers:
       - name: zookeeper
-        image: zookeeper:3.8
+        image: zopanix/zookeeper:3.4.13
         ports:
         - containerPort: 2181
           name: client
@@ -44,22 +44,10 @@ spec:
         - containerPort: 3888
           name: leader-election
         env:
-        - name: ZOO_MY_ID
+        - name: ZOOKEEPER_ID
           value: "1"
-        - name: ZOO_SERVERS
-          value: "server.1=zookeeper-0.zookeeper.kafka.svc.cluster.local:2888:3888;2181"
-        - name: ZOO_TICK_TIME
-          value: "2000"
-        - name: ZOO_INIT_LIMIT
-          value: "10"
-        - name: ZOO_SYNC_LIMIT
-          value: "5"
-        - name: ZOO_MAX_CLIENT_CNXNS
-          value: "60"
-        - name: ZOO_AUTOPURGE_SNAP_RETAIN_COUNT
-          value: "3"
-        - name: ZOO_AUTOPURGE_PURGE_INTERVAL
-          value: "1"
+        - name: ZOOKEEPER_SERVER_1
+          value: "zookeeper-0.zookeeper.kafka.svc.cluster.local"
         volumeMounts:
         - name: data
           mountPath: /data
