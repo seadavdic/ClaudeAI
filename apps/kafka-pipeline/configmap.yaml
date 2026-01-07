@@ -1,0 +1,374 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pipeline-code
+  namespace: order-pipeline
+data:
+  requirements.txt: |
+    kafka-python==2.0.2
+    prometheus_client==0.19.0
+    flask==3.0.0
+
+  common.py: |
+    """Common utilities for all services"""
+    import json
+    import logging
+    from datetime import datetime
+
+    def setup_logging(service_name):
+        """Setup structured logging"""
+        logging.basicConfig(
+            level=logging.INFO,
+            format='{"timestamp": "%(asctime)s", "service": "' + service_name + '", "level": "%(levelname)s", "message": "%(message)s"}'
+        )
+        return logging.getLogger(service_name)
+
+    def serialize_json(obj):
+        """JSON serializer for datetime objects"""
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        raise TypeError(f"Type {type(obj)} not serializable")
+
+  order_generator.py: |
+    #!/usr/bin/env python3
+    """
+    Order Generator - Simulates customer orders continuously
+    """
+    from kafka import KafkaProducer
+    import json
+    import time
+    import random
+    from datetime import datetime
+    from prometheus_client import Counter, Gauge, start_http_server
+    from common import setup_logging, serialize_json
+
+    logger = setup_logging('order-generator')
+
+    # Prometheus metrics
+    orders_generated = Counter('orders_generated_total', 'Total orders generated')
+    orders_per_second = Gauge('orders_per_second', 'Current order generation rate')
+
+    KAFKA_BROKER = 'kafka.kafka.svc.cluster.local:9092'
+
+    PRODUCTS = [
+        {'id': 1, 'name': 'Laptop Pro 15', 'price': 1299.99},
+        {'id': 2, 'name': 'Wireless Mouse', 'price': 29.99},
+        {'id': 3, 'name': 'Mechanical Keyboard', 'price': 149.99},
+        {'id': 4, 'name': '4K Monitor', 'price': 499.99},
+        {'id': 5, 'name': 'USB-C Hub', 'price': 79.99},
+        {'id': 6, 'name': 'Webcam HD', 'price': 89.99},
+        {'id': 7, 'name': 'Headphones Pro', 'price': 249.99},
+        {'id': 8, 'name': 'Phone Stand', 'price': 19.99},
+    ]
+
+    CUSTOMERS = ['alice@example.com', 'bob@example.com', 'charlie@example.com',
+                 'diana@example.com', 'eve@example.com', 'frank@example.com']
+
+    def create_producer():
+        return KafkaProducer(
+            bootstrap_servers=[KAFKA_BROKER],
+            value_serializer=lambda v: json.dumps(v, default=serialize_json).encode('utf-8'),
+            acks='all'
+        )
+
+    def generate_order(order_id):
+        """Generate a realistic order"""
+        customer = random.choice(CUSTOMERS)
+        num_items = random.randint(1, 3)
+        items = random.sample(PRODUCTS, num_items)
+
+        total = sum(item['price'] * random.randint(1, 2) for item in items)
+
+        return {
+            'order_id': order_id,
+            'customer_email': customer,
+            'items': [{'product_id': item['id'], 'name': item['name'],
+                      'price': item['price'], 'quantity': random.randint(1, 2)}
+                     for item in items],
+            'total_amount': round(total, 2),
+            'currency': 'EUR',
+            'timestamp': datetime.utcnow(),
+            'status': 'pending'
+        }
+
+    def main():
+        start_http_server(8000)
+        logger.info("Order Generator started - Prometheus metrics at :8000")
+
+        producer = create_producer()
+        order_id = 1
+
+        while True:
+            try:
+                # Generate 1-5 orders per batch
+                batch_size = random.randint(1, 5)
+
+                for _ in range(batch_size):
+                    order = generate_order(order_id)
+                    producer.send('orders', value=order)
+                    orders_generated.inc()
+                    logger.info(f"Generated order #{order_id} for {order['customer_email']} - €{order['total_amount']}")
+                    order_id += 1
+
+                orders_per_second.set(batch_size / 10.0)  # Approximate rate
+
+                # Wait 10-20 seconds between batches (realistic traffic)
+                time.sleep(random.uniform(10, 20))
+
+            except Exception as e:
+                logger.error(f"Error generating order: {e}")
+                time.sleep(5)
+
+    if __name__ == '__main__':
+        main()
+
+  payment_service.py: |
+    #!/usr/bin/env python3
+    """
+    Payment Service - Processes payments from orders
+    """
+    from kafka import KafkaConsumer, KafkaProducer
+    import json
+    import time
+    import random
+    from datetime import datetime
+    from prometheus_client import Counter, Histogram, Gauge, start_http_server
+    from common import setup_logging, serialize_json
+
+    logger = setup_logging('payment-service')
+
+    # Metrics
+    payments_processed = Counter('payments_processed_total', 'Payments processed', ['status'])
+    payment_duration = Histogram('payment_duration_seconds', 'Payment processing time')
+    payment_amount = Counter('payment_amount_total', 'Total payment amount', ['status'])
+    consumer_lag = Gauge('consumer_lag_orders', 'Consumer lag for orders topic')
+
+    KAFKA_BROKER = 'kafka.kafka.svc.cluster.local:9092'
+
+    def create_consumer():
+        return KafkaConsumer(
+            'orders',
+            bootstrap_servers=[KAFKA_BROKER],
+            group_id='payment-service',
+            value_deserializer=lambda m: json.loads(m.decode('utf-8')),
+            auto_offset_reset='earliest'
+        )
+
+    def create_producer():
+        return KafkaProducer(
+            bootstrap_servers=[KAFKA_BROKER],
+            value_serializer=lambda v: json.dumps(v, default=serialize_json).encode('utf-8'),
+            acks='all'
+        )
+
+    def process_payment(order):
+        """Simulate payment processing (90% success rate)"""
+        # Simulate payment processing delay
+        processing_time = random.uniform(0.5, 2.0)
+        time.sleep(processing_time)
+
+        # 90% success rate
+        success = random.random() < 0.9
+
+        payment_result = {
+            'order_id': order['order_id'],
+            'customer_email': order['customer_email'],
+            'amount': order['total_amount'],
+            'currency': order['currency'],
+            'status': 'success' if success else 'failed',
+            'payment_method': random.choice(['credit_card', 'paypal', 'bank_transfer']),
+            'transaction_id': f"TXN-{order['order_id']}-{int(time.time())}",
+            'timestamp': datetime.utcnow(),
+            'processing_time': processing_time,
+            'failure_reason': None if success else random.choice([
+                'insufficient_funds', 'card_expired', 'fraud_detected', 'network_error'
+            ])
+        }
+
+        return payment_result, processing_time
+
+    def main():
+        start_http_server(8001)
+        logger.info("Payment Service started - Prometheus metrics at :8001")
+
+        consumer = create_consumer()
+        producer = create_producer()
+
+        for message in consumer:
+            try:
+                order = message.value
+                logger.info(f"Processing payment for order #{order['order_id']}")
+
+                with payment_duration.time():
+                    result, proc_time = process_payment(order)
+
+                # Publish result
+                producer.send('payments', value=result)
+
+                # Update metrics
+                status = result['status']
+                payments_processed.labels(status=status).inc()
+                payment_amount.labels(status=status).inc(result['amount'])
+
+                logger.info(f"Payment {status} for order #{order['order_id']} - €{result['amount']} ({proc_time:.2f}s)")
+
+            except Exception as e:
+                logger.error(f"Error processing payment: {e}")
+
+    if __name__ == '__main__':
+        main()
+
+  fulfillment_service.py: |
+    #!/usr/bin/env python3
+    """
+    Fulfillment Service - Handles shipping for successful payments
+    """
+    from kafka import KafkaConsumer, KafkaProducer
+    import json
+    import time
+    import random
+    from datetime import datetime, timedelta
+    from prometheus_client import Counter, Histogram, start_http_server
+    from common import setup_logging, serialize_json
+
+    logger = setup_logging('fulfillment-service')
+
+    # Metrics
+    shipments_created = Counter('shipments_created_total', 'Shipments created')
+    fulfillment_duration = Histogram('fulfillment_duration_seconds', 'Fulfillment processing time')
+
+    KAFKA_BROKER = 'kafka.kafka.svc.cluster.local:9092'
+
+    def create_consumer():
+        return KafkaConsumer(
+            'payments',
+            bootstrap_servers=[KAFKA_BROKER],
+            group_id='fulfillment-service',
+            value_deserializer=lambda m: json.loads(m.decode('utf-8')),
+            auto_offset_reset='earliest'
+        )
+
+    def create_producer():
+        return KafkaProducer(
+            bootstrap_servers=[KAFKA_BROKER],
+            value_serializer=lambda v: json.dumps(v, default=serialize_json).encode('utf-8'),
+            acks='all'
+        )
+
+    def create_shipment(payment):
+        """Create shipment for successful payment"""
+        processing_time = random.uniform(1.0, 3.0)
+        time.sleep(processing_time)
+
+        delivery_days = random.randint(2, 7)
+
+        shipment = {
+            'order_id': payment['order_id'],
+            'customer_email': payment['customer_email'],
+            'tracking_number': f"TRACK-{payment['order_id']}-{int(time.time())}",
+            'carrier': random.choice(['DHL', 'FedEx', 'UPS', 'USPS']),
+            'estimated_delivery': (datetime.utcnow() + timedelta(days=delivery_days)),
+            'status': 'shipped',
+            'timestamp': datetime.utcnow()
+        }
+
+        return shipment, processing_time
+
+    def main():
+        start_http_server(8002)
+        logger.info("Fulfillment Service started - Prometheus metrics at :8002")
+
+        consumer = create_consumer()
+        producer = create_producer()
+
+        for message in consumer:
+            try:
+                payment = message.value
+
+                # Only process successful payments
+                if payment['status'] != 'success':
+                    logger.info(f"Skipping failed payment for order #{payment['order_id']}")
+                    continue
+
+                logger.info(f"Creating shipment for order #{payment['order_id']}")
+
+                with fulfillment_duration.time():
+                    shipment, proc_time = create_shipment(payment)
+
+                # Publish shipment
+                producer.send('shipments', value=shipment)
+                shipments_created.inc()
+
+                logger.info(f"Shipment created for order #{payment['order_id']} - {shipment['tracking_number']} ({proc_time:.2f}s)")
+
+            except Exception as e:
+                logger.error(f"Error creating shipment: {e}")
+
+    if __name__ == '__main__':
+        main()
+
+  notification_service.py: |
+    #!/usr/bin/env python3
+    """
+    Notification Service - Sends notifications for all events
+    """
+    from kafka import KafkaConsumer
+    import json
+    from prometheus_client import Counter, start_http_server
+    from common import setup_logging
+
+    logger = setup_logging('notification-service')
+
+    # Metrics
+    notifications_sent = Counter('notifications_sent_total', 'Notifications sent', ['type', 'topic'])
+
+    KAFKA_BROKER = 'kafka.kafka.svc.cluster.local:9092'
+
+    def create_consumer():
+        return KafkaConsumer(
+            'orders', 'payments', 'shipments',
+            bootstrap_servers=[KAFKA_BROKER],
+            group_id='notification-service',
+            value_deserializer=lambda m: json.loads(m.decode('utf-8')),
+            auto_offset_reset='earliest'
+        )
+
+    def send_notification(topic, event):
+        """Simulate sending email/SMS notification"""
+        customer = event.get('customer_email', 'unknown')
+        order_id = event.get('order_id', 'N/A')
+
+        if topic == 'orders':
+            notification_type = 'order_confirmation'
+            message = f"Order #{order_id} received - Total: €{event.get('total_amount', 0)}"
+        elif topic == 'payments':
+            status = event.get('status')
+            notification_type = f'payment_{status}'
+            if status == 'success':
+                message = f"Payment successful for order #{order_id}"
+            else:
+                message = f"Payment failed for order #{order_id} - {event.get('failure_reason')}"
+        elif topic == 'shipments':
+            notification_type = 'shipment_notification'
+            message = f"Order #{order_id} shipped - Tracking: {event.get('tracking_number')}"
+        else:
+            notification_type = 'unknown'
+            message = "Unknown event"
+
+        logger.info(f"📧 Sending {notification_type} to {customer}: {message}")
+        notifications_sent.labels(type=notification_type, topic=topic).inc()
+
+    def main():
+        start_http_server(8003)
+        logger.info("Notification Service started - Prometheus metrics at :8003")
+
+        consumer = create_consumer()
+
+        for message in consumer:
+            try:
+                send_notification(message.topic, message.value)
+            except Exception as e:
+                logger.error(f"Error sending notification: {e}")
+
+    if __name__ == '__main__':
+        main()
