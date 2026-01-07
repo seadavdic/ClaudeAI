@@ -47,30 +47,6 @@ spec:
             scrape_interval: 30s
             metrics_path: '/metrics'
 
-          - job_name: 'order-generator'
-            static_configs:
-              - targets: ['order-generator.order-pipeline.svc.cluster.local:8000']
-            scrape_interval: 30s
-            metrics_path: '/metrics'
-
-          - job_name: 'payment-service'
-            static_configs:
-              - targets: ['payment-service.order-pipeline.svc.cluster.local:8001']
-            scrape_interval: 30s
-            metrics_path: '/metrics'
-
-          - job_name: 'fulfillment-service'
-            static_configs:
-              - targets: ['fulfillment-service.order-pipeline.svc.cluster.local:8002']
-            scrape_interval: 30s
-            metrics_path: '/metrics'
-
-          - job_name: 'notification-service'
-            static_configs:
-              - targets: ['notification-service.order-pipeline.svc.cluster.local:8003']
-            scrape_interval: 30s
-            metrics_path: '/metrics'
-
       # Alert rules
       alerting_rules.yml:
         groups:
