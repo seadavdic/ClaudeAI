@@ -985,6 +985,585 @@ yourname/ClaudeAI/
 
 ---
 
+## 🐰 RabbitMQ Order Processing Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│              EVENT-DRIVEN ORDER PROCESSING ARCHITECTURE                 │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  📨 Message Broker: RabbitMQ 3.13-management-alpine
+  🏗️  Architecture: Fanout Exchange Pattern
+  🔄 Message Flow: Orders → Payments → Fulfillment → Notifications
+  ⚡ Throughput: 1-5 orders every 10-20 seconds (configurable)
+  📊 Success Rate: ~90% payment success (realistic simulation)
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        RABBITMQ CORE DEPLOYMENT                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  🐰 RabbitMQ Pod (Namespace: rabbitmq)
+  ┌────────────────────────────────────────────────────────────────┐
+  │  Image: rabbitmq:3.13-management-alpine                        │
+  │  Architecture: ARM32 compatible                                │
+  │                                                                │
+  │  Ports:                                                        │
+  │  ├─ 5672  (AMQP protocol)                                     │
+  │  ├─ 15672 (Management UI)                                     │
+  │  └─ 15692 (Prometheus metrics)                                │
+  │                                                                │
+  │  Credentials:                                                  │
+  │  ├─ User: admin                                               │
+  │  └─ Pass: admin123                                            │
+  │                                                                │
+  │  Resources:                                                    │
+  │  ├─ CPU: 250m request, 1000m limit                            │
+  │  └─ Memory: 512Mi request, 1Gi limit                          │
+  │                                                                │
+  │  Plugins Enabled:                                              │
+  │  ├─ rabbitmq_management (Web UI)                              │
+  │  └─ rabbitmq_prometheus (Metrics exporter)                    │
+  │                                                                │
+  │  Access Points:                                                │
+  │  ├─ Internal: rabbitmq.rabbitmq.svc.cluster.local:5672        │
+  │  ├─ Management UI: http://rabbitmq.local:30683                │
+  │  └─ Metrics: http://rabbitmq.rabbitmq.svc:15692/metrics       │
+  └────────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    MESSAGE FLOW ARCHITECTURE                            │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  Step 1: Order Generation
+  ┌─────────────────────────────────────┐
+  │  📝 Order Generator Service         │
+  │                                     │
+  │  Every 10-20 seconds:               │
+  │  ├─ Generate 1-5 orders             │
+  │  ├─ Customer: Random from 6 users   │
+  │  ├─ Products: 1-3 items per order   │
+  │  ├─ Amount: €99.99 - €3000+         │
+  │  └─ Publish to 'orders' exchange    │
+  │                                     │
+  │  Queue: N/A (Publisher only)        │
+  │  Exchange: orders (fanout)          │
+  │  Metrics Port: 8000                 │
+  └──────────────┬──────────────────────┘
+                 │
+                 │ Message: Order JSON
+                 │ {order_id, customer_email, items[], total_amount...}
+                 │
+                 ▼
+  ┌────────────────────────────────────────┐
+  │  🔀 Exchange: 'orders'                 │
+  │  Type: fanout (broadcasts to all)     │
+  │  Durable: true                         │
+  └──────────┬─────────────────────────────┘
+             │
+             │ Fanout to bound queues
+             │
+             ├──────────────────────────┐
+             │                          │
+             ▼                          ▼
+  ┌─────────────────────┐    ┌──────────────────────────┐
+  │ payment_processor_  │    │ notifications_orders_    │
+  │ queue               │    │ queue                    │
+  └─────────┬───────────┘    └──────────┬───────────────┘
+            │                           │
+            │                           │
+            ▼                           ▼
+  Step 2a: Payment Processing   Step 2b: Order Notifications
+  ┌──────────────────────────┐  ┌─────────────────────────┐
+  │ 💳 Payment Service       │  │ 📧 Notification Service │
+  │                          │  │                         │
+  │ Replicas: 2 (HA)         │  │ Sends email/SMS:        │
+  │ Success Rate: 90%        │  │ "Order #X received"     │
+  │ Processing: 0.5-2.0s     │  │                         │
+  │                          │  │ Multi-threaded:         │
+  │ On Success:              │  │ Consumes 3 exchanges    │
+  │ ├─ Generate TXN ID       │  │ simultaneously          │
+  │ ├─ Select payment method │  │                         │
+  │ └─ Publish to 'payments' │  └─────────────────────────┘
+  │                          │
+  │ On Failure (10%):        │
+  │ ├─ Random failure reason │
+  │ └─ Still publish result  │
+  │                          │
+  │ Metrics Port: 8001       │
+  └──────────┬───────────────┘
+             │
+             │ Message: Payment Result JSON
+             │ {order_id, status, amount, txn_id, failure_reason...}
+             │
+             ▼
+  ┌────────────────────────────────────────┐
+  │  🔀 Exchange: 'payments'               │
+  │  Type: fanout                          │
+  └──────────┬─────────────────────────────┘
+             │
+             │ Fanout to bound queues
+             │
+             ├──────────────────────────┐
+             │                          │
+             ▼                          ▼
+  ┌───────────────────────┐  ┌──────────────────────────┐
+  │ fulfillment_processor_│  │ notifications_payments_  │
+  │ queue                 │  │ queue                    │
+  └─────────┬─────────────┘  └──────────┬───────────────┘
+            │                           │
+            │                           │
+            ▼                           ▼
+  Step 3a: Fulfillment        Step 3b: Payment Notifications
+  ┌──────────────────────┐    ┌─────────────────────────┐
+  │ 📦 Fulfillment       │    │ 📧 Notification Service │
+  │    Service           │    │                         │
+  │                      │    │ Sends email/SMS:        │
+  │ Filters:             │    │ "Payment successful"    │
+  │ ├─ Only success      │    │ OR                      │
+  │ └─ Skip failed       │    │ "Payment failed: reason"│
+  │                      │    └─────────────────────────┘
+  │ Processing: 1-3s     │
+  │ Creates:             │
+  │ ├─ Tracking number   │
+  │ ├─ Carrier selection │
+  │ ├─ Delivery estimate │
+  │ └─ Shipment record   │
+  │                      │
+  │ Publishes to         │
+  │ 'shipments' exchange │
+  │                      │
+  │ Metrics Port: 8002   │
+  └──────────┬───────────┘
+             │
+             │ Message: Shipment JSON
+             │ {order_id, tracking_number, carrier, est_delivery...}
+             │
+             ▼
+  ┌────────────────────────────────────────┐
+  │  🔀 Exchange: 'shipments'              │
+  │  Type: fanout                          │
+  └──────────┬─────────────────────────────┘
+             │
+             │ Fanout to bound queues
+             │
+             ▼
+  ┌──────────────────────────┐
+  │ notifications_shipments_ │
+  │ queue                    │
+  └──────────┬───────────────┘
+             │
+             │
+             ▼
+  Step 4: Shipment Notifications
+  ┌──────────────────────────┐
+  │ 📧 Notification Service  │
+  │                          │
+  │ Sends email/SMS:         │
+  │ "Order shipped!"         │
+  │ "Tracking: TRACK-X-Y"    │
+  │                          │
+  │ Metrics Port: 8003       │
+  └──────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        QUEUE STRUCTURE                                  │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  Named Queues (Visible in RabbitMQ UI):
+  ┌──────────────────────────────────────────────────────────────┐
+  │                                                              │
+  │  1️⃣  payment_processor_queue                                │
+  │      ├─ Bound to: orders exchange                           │
+  │      ├─ Consumer: payment-service (2 replicas)              │
+  │      ├─ Purpose: Process order payments                     │
+  │      └─ Durable: true                                       │
+  │                                                              │
+  │  2️⃣  fulfillment_processor_queue                            │
+  │      ├─ Bound to: payments exchange                         │
+  │      ├─ Consumer: fulfillment-service                       │
+  │      ├─ Purpose: Create shipments for successful payments   │
+  │      └─ Durable: true                                       │
+  │                                                              │
+  │  3️⃣  notifications_orders_queue                             │
+  │      ├─ Bound to: orders exchange                           │
+  │      ├─ Consumer: notification-service (thread 1)           │
+  │      ├─ Purpose: Send order confirmation notifications      │
+  │      └─ Durable: true                                       │
+  │                                                              │
+  │  4️⃣  notifications_payments_queue                           │
+  │      ├─ Bound to: payments exchange                         │
+  │      ├─ Consumer: notification-service (thread 2)           │
+  │      ├─ Purpose: Send payment status notifications          │
+  │      └─ Durable: true                                       │
+  │                                                              │
+  │  5️⃣  notifications_shipments_queue                          │
+  │      ├─ Bound to: shipments exchange                        │
+  │      ├─ Consumer: notification-service (thread 3)           │
+  │      ├─ Purpose: Send shipment notifications                │
+  │      └─ Durable: true                                       │
+  │                                                              │
+  └──────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                   SERVICE SPECIFICATIONS                                │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  🔹 Order Generator Service
+  ┌──────────────────────────────────────────────────────────────┐
+  │  Language: Python 3.11                                       │
+  │  Library: pika 1.3.2 (RabbitMQ client)                       │
+  │  Replicas: 1                                                 │
+  │  Namespace: order-pipeline                                   │
+  │                                                              │
+  │  Connection Pattern:                                         │
+  │  ├─ Retry: 10 attempts with 5s delay                        │
+  │  ├─ Heartbeat: 600s                                         │
+  │  └─ Timeout: 300s                                           │
+  │                                                              │
+  │  Sample Products:                                            │
+  │  ├─ Laptop €999.99                                          │
+  │  ├─ Smartphone €799.99                                      │
+  │  ├─ Headphones €149.99                                      │
+  │  └─ 5 more items...                                         │
+  │                                                              │
+  │  Sample Customers:                                           │
+  │  ├─ alice@example.com                                       │
+  │  ├─ bob@example.com                                         │
+  │  └─ 4 more customers...                                     │
+  │                                                              │
+  │  Prometheus Metrics:                                         │
+  │  └─ orders_generated_total (Counter)                        │
+  └──────────────────────────────────────────────────────────────┘
+
+  🔹 Payment Service
+  ┌──────────────────────────────────────────────────────────────┐
+  │  Language: Python 3.11                                       │
+  │  Replicas: 2 (Load balanced)                                 │
+  │  Queue: payment_processor_queue                              │
+  │  QoS: prefetch_count=1 (fair dispatch)                       │
+  │                                                              │
+  │  Processing Logic:                                           │
+  │  ├─ Success: 90% probability                                │
+  │  ├─ Failure: 10% probability                                │
+  │  ├─ Duration: 0.5-2.0 seconds                               │
+  │  └─ Payment Methods: credit_card, paypal, bank_transfer     │
+  │                                                              │
+  │  Failure Reasons (Random):                                   │
+  │  ├─ insufficient_funds                                      │
+  │  ├─ card_expired                                            │
+  │  ├─ fraud_detected                                          │
+  │  └─ network_error                                           │
+  │                                                              │
+  │  Prometheus Metrics:                                         │
+  │  ├─ payments_processed_total{status} (Counter)              │
+  │  ├─ payment_amount_total{status} (Counter)                  │
+  │  └─ payment_processing_duration_seconds (Histogram)         │
+  └──────────────────────────────────────────────────────────────┘
+
+  🔹 Fulfillment Service
+  ┌──────────────────────────────────────────────────────────────┐
+  │  Language: Python 3.11                                       │
+  │  Replicas: 1                                                 │
+  │  Queue: fulfillment_processor_queue                          │
+  │  QoS: prefetch_count=1                                       │
+  │                                                              │
+  │  Processing Logic:                                           │
+  │  ├─ Filter: Only successful payments                        │
+  │  ├─ Skip: Failed payments (logged)                          │
+  │  ├─ Duration: 1.0-3.0 seconds                               │
+  │  └─ Carriers: DHL, FedEx, UPS, USPS                         │
+  │                                                              │
+  │  Generates:                                                  │
+  │  ├─ Tracking: TRACK-{order_id}-{timestamp}                  │
+  │  ├─ Estimated delivery: 2-7 days                            │
+  │  └─ Shipment status: shipped                                │
+  │                                                              │
+  │  Prometheus Metrics:                                         │
+  │  ├─ shipments_created_total (Counter)                       │
+  │  └─ fulfillment_processing_duration_seconds (Histogram)     │
+  └──────────────────────────────────────────────────────────────┘
+
+  🔹 Notification Service
+  ┌──────────────────────────────────────────────────────────────┐
+  │  Language: Python 3.11                                       │
+  │  Replicas: 1                                                 │
+  │  Architecture: Multi-threaded (3 threads)                    │
+  │  Queues: All 3 notification queues simultaneously            │
+  │                                                              │
+  │  Thread-Safety:                                              │
+  │  ├─ Each thread: Separate RabbitMQ connection               │
+  │  ├─ Each thread: Dedicated channel                          │
+  │  └─ No shared connection (prevents crashes)                 │
+  │                                                              │
+  │  Notification Types:                                         │
+  │  ├─ order_confirmation: "Order #X received - €Y"            │
+  │  ├─ payment_success: "Payment successful for order #X"      │
+  │  ├─ payment_failed: "Payment failed: {reason}"              │
+  │  └─ shipment_notification: "Order shipped! Track: X"        │
+  │                                                              │
+  │  Prometheus Metrics:                                         │
+  │  └─ notifications_sent_total{type,topic} (Counter)          │
+  └──────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    GRAFANA DASHBOARD PANELS                             │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  Dashboard: "RabbitMQ & Order Pipeline"
+  Refresh: 10 seconds (real-time monitoring)
+  Panels: 22 total (organized in 2 sections)
+
+  📊 Section 1: RabbitMQ Metrics (9 panels)
+  ┌──────────────────────────────────────────────────────────────┐
+  │                                                              │
+  │  1. Total Queued Messages (Stat)                            │
+  │     ├─ Query: sum(rabbitmq_queue_messages)                  │
+  │     └─ Thresholds: Green<100, Yellow<1000, Red≥1000         │
+  │                                                              │
+  │  2. Messages Ready (Stat)                                   │
+  │     └─ Query: sum(rabbitmq_queue_messages_ready)            │
+  │                                                              │
+  │  3. Messages Unacknowledged (Stat)                          │
+  │     ├─ Query: sum(rabbitmq_queue_messages_unacked)          │
+  │     └─ Thresholds: Green<50, Yellow<200, Red≥200            │
+  │                                                              │
+  │  4. Total Consumers (Stat)                                  │
+  │     ├─ Query: sum(rabbitmq_queue_consumers)                 │
+  │     └─ Color: Red if 0, Green if ≥1                         │
+  │                                                              │
+  │  5. Queue Depths by Queue (Time Series)                     │
+  │     ├─ Query: rabbitmq_queue_messages{queue=~".*_queue"}    │
+  │     └─ Shows: Each named queue depth over time              │
+  │                                                              │
+  │  6. Message Rate (Time Series)                              │
+  │     ├─ Published: rate(messages_published_total[1m])        │
+  │     ├─ Delivered: rate(messages_delivered_total[1m])        │
+  │     └─ Acknowledged: rate(messages_acked_total[1m])         │
+  │                                                              │
+  │  7. Connections & Channels (Time Series)                    │
+  │     ├─ Connections: rabbitmq_connections                    │
+  │     └─ Channels: rabbitmq_channels                          │
+  │                                                              │
+  │  8. Memory Usage (Gauge)                                    │
+  │     ├─ Query: rabbitmq_process_resident_memory_bytes/1024/1024│
+  │     ├─ Unit: MB                                             │
+  │     └─ Thresholds: Green<700MB, Yellow<900MB, Red≥900MB     │
+  │                                                              │
+  └──────────────────────────────────────────────────────────────┘
+
+  📊 Section 2: Order Pipeline Metrics (13 panels)
+  ┌──────────────────────────────────────────────────────────────┐
+  │                                                              │
+  │  9. Orders Generated (Stat)                                 │
+  │     └─ Query: orders_generated_total                        │
+  │                                                              │
+  │  10. Payments Processed (Stat)                              │
+  │      └─ Query: sum(payments_processed_total)                │
+  │                                                              │
+  │  11. Shipments Created (Stat)                               │
+  │      └─ Query: shipments_created_total                      │
+  │                                                              │
+  │  12. Notifications Sent (Stat)                              │
+  │      └─ Query: sum(notifications_sent_total)                │
+  │                                                              │
+  │  13. Order Generation Rate (Time Series)                    │
+  │      └─ Query: rate(orders_generated_total[5m]) * 60        │
+  │                                                              │
+  │  14. Payment Success vs Failed (Time Series)                │
+  │      ├─ Success: rate(payments_processed{status="success"}[5m])│
+  │      └─ Failed: rate(payments_processed{status="failed"}[5m])  │
+  │                                                              │
+  │  15. Payment Success Rate % (Gauge)                         │
+  │      ├─ Query: (sum(success) / sum(total)) * 100            │
+  │      └─ Thresholds: Red<80%, Yellow<90%, Green≥90%          │
+  │                                                              │
+  │  16. Total Revenue (Stat)                                   │
+  │      ├─ Query: sum(payment_amount_total)                    │
+  │      ├─ Unit: EUR                                           │
+  │      └─ Decimals: 2                                         │
+  │                                                              │
+  │  17. Payment Processing Time p95 (Gauge)                    │
+  │      ├─ Query: histogram_quantile(0.95, payment_processing_duration)│
+  │      ├─ Unit: seconds                                       │
+  │      └─ Thresholds: Green<1.5s, Yellow<2.5s, Red≥2.5s       │
+  │                                                              │
+  │  18. Fulfillment Processing Time p95 (Gauge)                │
+  │      ├─ Query: histogram_quantile(0.95, fulfillment_processing_duration)│
+  │      ├─ Unit: seconds                                       │
+  │      └─ Thresholds: Green<2s, Yellow<3s, Red≥3s             │
+  │                                                              │
+  │  19. Pipeline Throughput (Time Series)                      │
+  │      ├─ Orders Generated                                    │
+  │      ├─ Payments Success                                    │
+  │      ├─ Shipments Created                                   │
+  │      └─ Notifications Sent                                  │
+  │          (All rates per minute)                             │
+  │                                                              │
+  │  20. Service Health (Time Series)                           │
+  │      ├─ Order Generator: up{job="order-generator"}          │
+  │      ├─ Payment Service: up{job="payment-service"}          │
+  │      ├─ Fulfillment Service: up{job="fulfillment-service"}  │
+  │      └─ Notification Service: up{job="notification-service"}│
+  │          (Binary: 1=up, 0=down)                             │
+  │                                                              │
+  └──────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      ACCESS & MONITORING                                │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  🐰 RabbitMQ Management UI
+  ┌──────────────────────────────────────────────────────────────┐
+  │  URL: http://rabbitmq.local:30683                           │
+  │  Login: admin / admin123                                    │
+  │                                                              │
+  │  Features:                                                   │
+  │  ├─ Overview: Connections, channels, queues, messages/sec   │
+  │  ├─ Connections: Active client connections                  │
+  │  ├─ Channels: Open channels per connection                  │
+  │  ├─ Exchanges: orders, payments, shipments (fanout)         │
+  │  ├─ Queues: 5 named queues with depths & consumers          │
+  │  └─ Admin: User management, vhosts, policies                │
+  │                                                              │
+  │  Note: Add to Windows hosts file:                           │
+  │  192.168.178.210 rabbitmq.local                             │
+  └──────────────────────────────────────────────────────────────┘
+
+  📊 Grafana Dashboard
+  ┌──────────────────────────────────────────────────────────────┐
+  │  URL: http://grafana.local:30683                            │
+  │  Dashboard: "RabbitMQ & Order Pipeline"                     │
+  │                                                              │
+  │  View:                                                       │
+  │  ├─ Real-time message flow                                  │
+  │  ├─ Queue depths and backlogs                               │
+  │  ├─ Payment success/failure rates                           │
+  │  ├─ Processing time latencies                               │
+  │  ├─ Total revenue generated                                 │
+  │  └─ Service health status                                   │
+  └──────────────────────────────────────────────────────────────┘
+
+  📈 Prometheus Metrics
+  ┌──────────────────────────────────────────────────────────────┐
+  │  RabbitMQ Scrape Target:                                    │
+  │  └─ rabbitmq.rabbitmq.svc.cluster.local:15692/metrics       │
+  │                                                              │
+  │  Service Scrape Targets:                                    │
+  │  ├─ order-generator:8000/metrics                            │
+  │  ├─ payment-service:8001/metrics                            │
+  │  ├─ fulfillment-service:8002/metrics                        │
+  │  └─ notification-service:8003/metrics                       │
+  │                                                              │
+  │  Scrape Interval: 30 seconds                                │
+  │  Retention: 2 days                                          │
+  └──────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      RELIABILITY FEATURES                               │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  ✅ Connection Resilience
+  ├─ Automatic retry: 10 attempts with 5s backoff
+  ├─ Heartbeat monitoring: 600s keepalive
+  ├─ Connection timeout: 300s
+  └─ Graceful reconnection on network issues
+
+  ✅ Message Durability
+  ├─ Durable queues: Survive RabbitMQ restarts
+  ├─ Durable exchanges: Persist configuration
+  ├─ Message acknowledgment: Manual ack/nack
+  └─ Failed messages: Logged and rejected (no requeue)
+
+  ✅ Load Balancing
+  ├─ Payment service: 2 replicas for high availability
+  ├─ Fair dispatch: QoS prefetch_count=1
+  ├─ Round-robin: RabbitMQ distributes evenly
+  └─ No single point of failure
+
+  ✅ Error Handling
+  ├─ Try-catch blocks: All message processing
+  ├─ Structured logging: JSON format with context
+  ├─ Failed payment tracking: Separate metric labels
+  └─ Dead letter handling: Rejected messages logged
+
+  ✅ Thread Safety
+  ├─ Notification service: Separate connection per thread
+  ├─ No shared state: Each thread independent
+  └─ Prevents: Pika BlockingConnection crashes
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      DEPLOYMENT FILES                                   │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  📁 apps/rabbitmq/
+  ├─ namespace.yaml           ← rabbitmq namespace
+  ├─ deployment.yaml          ← RabbitMQ pod with management plugin
+  ├─ service.yaml             ← Exposes AMQP, management, metrics
+  ├─ ingress.yaml             ← Traefik ingress for management UI
+  └─ kustomization.yaml       ← GitOps configuration
+
+  📁 apps/order-pipeline/
+  ├─ namespace.yaml           ← order-pipeline namespace
+  ├─ configmap.yaml           ← All 4 service Python code (446 lines)
+  ├─ deployments.yaml         ← 4 service deployments
+  ├─ services.yaml            ← 4 metrics endpoints
+  └─ kustomization.yaml       ← GitOps configuration
+
+  Total: 10 files, ~1400 lines of infrastructure + application code
+  Deployment: Automatic via Flux CD (GitOps)
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      TECHNICAL DECISIONS                                │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  ❓ Why RabbitMQ instead of Kafka?
+  ├─ ARM32 Compatibility: Kafka images don't support ARMv7
+  ├─ Lightweight: RabbitMQ requires less resources (512Mi vs 2Gi+)
+  ├─ Simpler setup: No Zookeeper needed
+  └─ Alpine image: rabbitmq:3.13-management-alpine (ARM32 ready)
+
+  ❓ Why Fanout Exchanges?
+  ├─ Broadcast pattern: Multiple consumers per message
+  ├─ Simple routing: No complex rules needed
+  ├─ Decoupling: Services don't know about each other
+  └─ Easy expansion: Add new consumers without changes
+
+  ❓ Why Named Queues?
+  ├─ Visibility: Easy to identify in RabbitMQ UI
+  ├─ Monitoring: Better dashboard filtering
+  ├─ Debugging: Clear queue purpose
+  └─ Durable: Survive pod restarts
+
+  ❓ Why ConfigMap for Code?
+  ├─ GitOps: Single source of truth in Git
+  ├─ No registry: No need for Docker Hub/private registry
+  ├─ Fast updates: Change code + git push = auto-deploy
+  └─ ARM32 base: Use standard python:3.11-slim (ARM compatible)
+
+  ❓ Why Separate Connection per Thread?
+  ├─ Pika limitation: BlockingConnection not thread-safe
+  ├─ Crash prevention: Prevents StreamLostError
+  ├─ Independence: Each thread fully isolated
+  └─ Reliability: One thread failure doesn't affect others
+
+  ❓ Why 90% Payment Success Rate?
+  ├─ Realistic simulation: Real-world failure scenarios
+  ├─ Monitoring test: Validates alerting on failures
+  ├─ Dashboard testing: Success/failure visualization
+  └─ Error handling: Exercises failure code paths
+```
+
+---
+
 **Created:** 2026-01-04
 **Last Updated:** 2026-01-07
 **Cluster:** 2x Raspberry Pi (ARMv7)
