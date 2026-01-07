@@ -8,7 +8,7 @@ spec:
   chart:
     spec:
       chart: kafka
-      version: "29.3.14"  # Using Kafka 3.7.1 for ARM32 compatibility
+      version: "26.11.4"  # Using Kafka 3.6.1 for better ARM32 support
       sourceRef:
         kind: HelmRepository
         name: bitnami
@@ -17,14 +17,12 @@ spec:
   install:
     createNamespace: true
   values:
-    # Use KRaft mode (no ZooKeeper) to save resources
+    # Disable KRaft mode - use ZooKeeper for ARM32 compatibility
     kraft:
-      enabled: true
+      enabled: false
 
-    # Single broker/controller for resource efficiency
+    # Single broker for resource efficiency
     replicaCount: 1
-    controller:
-      replicaCount: 1
 
     # Resource limits for Raspberry Pi
     resources:
@@ -78,6 +76,18 @@ spec:
         service:
           port: 5556
 
-    # Disable ZooKeeper (using KRaft)
+    # Enable ZooKeeper with minimal resources
     zookeeper:
-      enabled: false
+      enabled: true
+      replicaCount: 1
+      resources:
+        limits:
+          cpu: 500m
+          memory: 512Mi
+        requests:
+          cpu: 100m
+          memory: 256Mi
+      persistence:
+        enabled: true
+        storageClass: local-path
+        size: 2Gi
