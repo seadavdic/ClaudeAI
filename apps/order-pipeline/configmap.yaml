@@ -1,0 +1,440 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pipeline-code
+  namespace: order-pipeline
+data:
+  requirements.txt: |
+    pika==1.3.2
+    prometheus_client==0.19.0
+    flask==3.0.0
+
+  common.py: |
+    """Common utilities for all services"""
+    import json
+    import logging
+    from datetime import datetime
+    import pika
+    import time
+
+    def setup_logging(service_name):
+        """Setup structured logging"""
+        logging.basicConfig(
+            level=logging.INFO,
+            format='{"timestamp": "%(asctime)s", "service": "' + service_name + '", "level": "%(levelname)s", "message": "%(message)s"}'
+        )
+        return logging.getLogger(service_name)
+
+    def serialize_json(obj):
+        """JSON serializer for datetime objects"""
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        raise TypeError(f"Type {type(obj)} not serializable")
+
+    def get_rabbitmq_connection():
+        """Get RabbitMQ connection with retry"""
+        credentials = pika.PlainCredentials('admin', 'admin123')
+        parameters = pika.ConnectionParameters(
+            host='rabbitmq.rabbitmq.svc.cluster.local',
+            port=5672,
+            credentials=credentials,
+            heartbeat=600,
+            blocked_connection_timeout=300
+        )
+
+        max_retries = 10
+        for i in range(max_retries):
+            try:
+                connection = pika.BlockingConnection(parameters)
+                return connection
+            except Exception as e:
+                if i < max_retries - 1:
+                    time.sleep(5)
+                else:
+                    raise
+
+  order_generator.py: |
+    #!/usr/bin/env python3
+    """
+    Order Generator - Simulates customer orders continuously
+    """
+    import json
+    import time
+    import random
+    from datetime import datetime
+    from prometheus_client import Counter, Gauge, start_http_server
+    from common import setup_logging, serialize_json, get_rabbitmq_connection
+
+    logger = setup_logging('order-generator')
+
+    # Prometheus metrics
+    orders_generated = Counter('orders_generated_total', 'Total orders generated')
+    orders_per_second = Gauge('orders_per_second', 'Current order generation rate')
+
+    PRODUCTS = [
+        {'id': 1, 'name': 'Laptop Pro 15', 'price': 1299.99},
+        {'id': 2, 'name': 'Wireless Mouse', 'price': 29.99},
+        {'id': 3, 'name': 'Mechanical Keyboard', 'price': 149.99},
+        {'id': 4, 'name': '4K Monitor', 'price': 499.99},
+        {'id': 5, 'name': 'USB-C Hub', 'price': 79.99},
+        {'id': 6, 'name': 'Webcam HD', 'price': 89.99},
+        {'id': 7, 'name': 'Headphones Pro', 'price': 249.99},
+        {'id': 8, 'name': 'Phone Stand', 'price': 19.99},
+    ]
+
+    CUSTOMERS = ['alice@example.com', 'bob@example.com', 'charlie@example.com',
+                 'diana@example.com', 'eve@example.com', 'frank@example.com']
+
+    def generate_order(order_id):
+        """Generate a realistic order"""
+        customer = random.choice(CUSTOMERS)
+        num_items = random.randint(1, 3)
+        items = random.sample(PRODUCTS, num_items)
+
+        total = sum(item['price'] * random.randint(1, 2) for item in items)
+
+        return {
+            'order_id': order_id,
+            'customer_email': customer,
+            'items': [{'product_id': item['id'], 'name': item['name'],
+                      'price': item['price'], 'quantity': random.randint(1, 2)}
+                     for item in items],
+            'total_amount': round(total, 2),
+            'currency': 'EUR',
+            'timestamp': datetime.utcnow(),
+            'status': 'pending'
+        }
+
+    def main():
+        start_http_server(8000)
+        logger.info("Order Generator started - Prometheus metrics at :8000")
+
+        connection = get_rabbitmq_connection()
+        channel = connection.channel()
+
+        # Declare exchange and queue
+        channel.exchange_declare(exchange='orders', exchange_type='fanout', durable=True)
+
+        order_id = 1
+
+        while True:
+            try:
+                # Generate 1-5 orders per batch
+                batch_size = random.randint(1, 5)
+
+                for _ in range(batch_size):
+                    order = generate_order(order_id)
+                    message = json.dumps(order, default=serialize_json)
+
+                    channel.basic_publish(
+                        exchange='orders',
+                        routing_key='',
+                        body=message
+                    )
+
+                    orders_generated.inc()
+                    logger.info(f"Generated order #{order_id} for {order['customer_email']} - €{order['total_amount']}")
+                    order_id += 1
+
+                orders_per_second.set(batch_size / 10.0)
+
+                # Wait 10-20 seconds between batches
+                time.sleep(random.uniform(10, 20))
+
+            except Exception as e:
+                logger.error(f"Error generating order: {e}")
+                time.sleep(5)
+                # Reconnect
+                try:
+                    connection = get_rabbitmq_connection()
+                    channel = connection.channel()
+                    channel.exchange_declare(exchange='orders', exchange_type='fanout', durable=True)
+                except:
+                    pass
+
+    if __name__ == '__main__':
+        main()
+
+  payment_service.py: |
+    #!/usr/bin/env python3
+    """
+    Payment Service - Processes payments from orders
+    """
+    import json
+    import time
+    import random
+    from datetime import datetime
+    from prometheus_client import Counter, Histogram, Gauge, start_http_server
+    from common import setup_logging, serialize_json, get_rabbitmq_connection
+
+    logger = setup_logging('payment-service')
+
+    # Metrics
+    payments_processed = Counter('payments_processed_total', 'Payments processed', ['status'])
+    payment_duration = Histogram('payment_duration_seconds', 'Payment processing time')
+    payment_amount = Counter('payment_amount_total', 'Total payment amount', ['status'])
+
+    def process_payment(order):
+        """Simulate payment processing (90% success rate)"""
+        processing_time = random.uniform(0.5, 2.0)
+        time.sleep(processing_time)
+
+        success = random.random() < 0.9
+
+        payment_result = {
+            'order_id': order['order_id'],
+            'customer_email': order['customer_email'],
+            'amount': order['total_amount'],
+            'currency': order['currency'],
+            'status': 'success' if success else 'failed',
+            'payment_method': random.choice(['credit_card', 'paypal', 'bank_transfer']),
+            'transaction_id': f"TXN-{order['order_id']}-{int(time.time())}",
+            'timestamp': datetime.utcnow(),
+            'processing_time': processing_time,
+            'failure_reason': None if success else random.choice([
+                'insufficient_funds', 'card_expired', 'fraud_detected', 'network_error'
+            ])
+        }
+
+        return payment_result, processing_time
+
+    def callback(ch, method, properties, body):
+        try:
+            order = json.loads(body)
+            logger.info(f"Processing payment for order #{order['order_id']}")
+
+            start_time = time.time()
+            result, proc_time = process_payment(order)
+            duration = time.time() - start_time
+
+            # Publish to payments exchange
+            message = json.dumps(result, default=serialize_json)
+            ch.basic_publish(
+                exchange='payments',
+                routing_key='',
+                body=message
+            )
+
+            # Update metrics
+            status = result['status']
+            payments_processed.labels(status=status).inc()
+            payment_amount.labels(status=status).inc(result['amount'])
+            payment_duration.observe(duration)
+
+            logger.info(f"Payment {status} for order #{order['order_id']} - €{result['amount']} ({proc_time:.2f}s)")
+
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+
+        except Exception as e:
+            logger.error(f"Error processing payment: {e}")
+            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+
+    def main():
+        start_http_server(8001)
+        logger.info("Payment Service started - Prometheus metrics at :8001")
+
+        connection = get_rabbitmq_connection()
+        channel = connection.channel()
+
+        # Declare exchanges
+        channel.exchange_declare(exchange='orders', exchange_type='fanout', durable=True)
+        channel.exchange_declare(exchange='payments', exchange_type='fanout', durable=True)
+
+        # Declare and bind queue
+        result = channel.queue_declare(queue='', exclusive=True)
+        queue_name = result.method.queue
+        channel.queue_bind(exchange='orders', queue=queue_name)
+
+        channel.basic_qos(prefetch_count=1)
+        channel.basic_consume(queue=queue_name, on_message_callback=callback)
+
+        logger.info("Waiting for orders...")
+        channel.start_consuming()
+
+    if __name__ == '__main__':
+        main()
+
+  fulfillment_service.py: |
+    #!/usr/bin/env python3
+    """
+    Fulfillment Service - Handles shipping for successful payments
+    """
+    import json
+    import time
+    import random
+    from datetime import datetime, timedelta
+    from prometheus_client import Counter, Histogram, start_http_server
+    from common import setup_logging, serialize_json, get_rabbitmq_connection
+
+    logger = setup_logging('fulfillment-service')
+
+    # Metrics
+    shipments_created = Counter('shipments_created_total', 'Shipments created')
+    fulfillment_duration = Histogram('fulfillment_duration_seconds', 'Fulfillment processing time')
+
+    def create_shipment(payment):
+        """Create shipment for successful payment"""
+        processing_time = random.uniform(1.0, 3.0)
+        time.sleep(processing_time)
+
+        delivery_days = random.randint(2, 7)
+
+        shipment = {
+            'order_id': payment['order_id'],
+            'customer_email': payment['customer_email'],
+            'tracking_number': f"TRACK-{payment['order_id']}-{int(time.time())}",
+            'carrier': random.choice(['DHL', 'FedEx', 'UPS', 'USPS']),
+            'estimated_delivery': (datetime.utcnow() + timedelta(days=delivery_days)),
+            'status': 'shipped',
+            'timestamp': datetime.utcnow()
+        }
+
+        return shipment, processing_time
+
+    def callback(ch, method, properties, body):
+        try:
+            payment = json.loads(body)
+
+            # Only process successful payments
+            if payment['status'] != 'success':
+                logger.info(f"Skipping failed payment for order #{payment['order_id']}")
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+                return
+
+            logger.info(f"Creating shipment for order #{payment['order_id']}")
+
+            start_time = time.time()
+            shipment, proc_time = create_shipment(payment)
+            duration = time.time() - start_time
+
+            # Publish shipment
+            message = json.dumps(shipment, default=serialize_json)
+            ch.basic_publish(
+                exchange='shipments',
+                routing_key='',
+                body=message
+            )
+
+            shipments_created.inc()
+            fulfillment_duration.observe(duration)
+
+            logger.info(f"Shipment created for order #{payment['order_id']} - {shipment['tracking_number']} ({proc_time:.2f}s)")
+
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+
+        except Exception as e:
+            logger.error(f"Error creating shipment: {e}")
+            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+
+    def main():
+        start_http_server(8002)
+        logger.info("Fulfillment Service started - Prometheus metrics at :8002")
+
+        connection = get_rabbitmq_connection()
+        channel = connection.channel()
+
+        # Declare exchanges
+        channel.exchange_declare(exchange='payments', exchange_type='fanout', durable=True)
+        channel.exchange_declare(exchange='shipments', exchange_type='fanout', durable=True)
+
+        # Declare and bind queue
+        result = channel.queue_declare(queue='', exclusive=True)
+        queue_name = result.method.queue
+        channel.queue_bind(exchange='payments', queue=queue_name)
+
+        channel.basic_qos(prefetch_count=1)
+        channel.basic_consume(queue=queue_name, on_message_callback=callback)
+
+        logger.info("Waiting for payments...")
+        channel.start_consuming()
+
+    if __name__ == '__main__':
+        main()
+
+  notification_service.py: |
+    #!/usr/bin/env python3
+    """
+    Notification Service - Sends notifications for all events
+    """
+    import json
+    from prometheus_client import Counter, start_http_server
+    from common import setup_logging, get_rabbitmq_connection
+    import threading
+
+    logger = setup_logging('notification-service')
+
+    # Metrics
+    notifications_sent = Counter('notifications_sent_total', 'Notifications sent', ['type', 'topic'])
+
+    def send_notification(topic, event):
+        """Simulate sending email/SMS notification"""
+        customer = event.get('customer_email', 'unknown')
+        order_id = event.get('order_id', 'N/A')
+
+        if topic == 'orders':
+            notification_type = 'order_confirmation'
+            message = f"Order #{order_id} received - Total: €{event.get('total_amount', 0)}"
+        elif topic == 'payments':
+            status = event.get('status')
+            notification_type = f'payment_{status}'
+            if status == 'success':
+                message = f"Payment successful for order #{order_id}"
+            else:
+                message = f"Payment failed for order #{order_id} - {event.get('failure_reason')}"
+        elif topic == 'shipments':
+            notification_type = 'shipment_notification'
+            message = f"Order #{order_id} shipped - Tracking: {event.get('tracking_number')}"
+        else:
+            notification_type = 'unknown'
+            message = "Unknown event"
+
+        logger.info(f"Sending {notification_type} to {customer}: {message}")
+        notifications_sent.labels(type=notification_type, topic=topic).inc()
+
+    def consume_queue(channel, exchange, topic):
+        """Consume messages from a specific exchange"""
+        channel.exchange_declare(exchange=exchange, exchange_type='fanout', durable=True)
+        result = channel.queue_declare(queue='', exclusive=True)
+        queue_name = result.method.queue
+        channel.queue_bind(exchange=exchange, queue=queue_name)
+
+        def callback(ch, method, properties, body):
+            try:
+                event = json.loads(body)
+                send_notification(topic, event)
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+            except Exception as e:
+                logger.error(f"Error sending notification: {e}")
+                ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+
+        channel.basic_consume(queue=queue_name, on_message_callback=callback)
+        logger.info(f"Consuming from {exchange}...")
+        channel.start_consuming()
+
+    def main():
+        start_http_server(8003)
+        logger.info("Notification Service started - Prometheus metrics at :8003")
+
+        connection = get_rabbitmq_connection()
+
+        # Create separate channels for each exchange
+        topics = [
+            ('orders', 'orders'),
+            ('payments', 'payments'),
+            ('shipments', 'shipments')
+        ]
+
+        threads = []
+        for exchange, topic in topics:
+            channel = connection.channel()
+            thread = threading.Thread(target=consume_queue, args=(channel, exchange, topic))
+            thread.daemon = True
+            thread.start()
+            threads.append(thread)
+
+        # Wait for all threads
+        for thread in threads:
+            thread.join()
+
+    if __name__ == '__main__':
+        main()
