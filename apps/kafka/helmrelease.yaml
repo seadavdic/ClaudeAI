@@ -21,24 +21,6 @@ spec:
     kraft:
       enabled: false
 
-    # Single broker for resource efficiency
-    replicaCount: 1
-
-    # Resource limits for Raspberry Pi
-    resources:
-      limits:
-        cpu: 1000m
-        memory: 1Gi
-      requests:
-        cpu: 250m
-        memory: 512Mi
-
-    # Persistent storage
-    persistence:
-      enabled: true
-      storageClass: local-path
-      size: 5Gi
-
     # Kafka configuration - use extraConfig instead of config
     extraConfig: |
       log.retention.hours=168
@@ -50,20 +32,30 @@ spec:
       default.replication.factor=1
       min.insync.replicas=1
 
-    # Listeners
-    listeners:
-      client:
-        protocol: PLAINTEXT
-      controller:
-        protocol: PLAINTEXT
-      interbroker:
-        protocol: PLAINTEXT
+    # Configure brokers for ZooKeeper mode
+    broker:
+      replicaCount: 1
+      persistence:
+        enabled: true
+        storageClass: local-path
+        size: 5Gi
+      resources:
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+        requests:
+          cpu: 250m
+          memory: 512Mi
 
     # Service configuration
     service:
       type: ClusterIP
       ports:
         client: 9092
+
+    # Disable controller nodes (only for KRaft mode)
+    controller:
+      replicaCount: 0
 
     # Metrics exporter for Prometheus
     metrics:
