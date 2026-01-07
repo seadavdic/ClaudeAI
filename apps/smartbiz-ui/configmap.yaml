@@ -452,10 +452,44 @@ data:
                 method: 'POST'
             });
             const data = await response.json();
-            document.getElementById('articleCategory').value = data.suggested_category;
-            document.getElementById('categoryConfidence').textContent =
-                `Confidence: ${(data.confidence * 100).toFixed(0)}%`;
-            showNotification('Category suggested!');
+
+            // Find matching option in dropdown (case-insensitive)
+            const select = document.getElementById('articleCategory');
+            const suggestedCategory = data.suggested_category.toLowerCase();
+            let matchedOption = null;
+
+            // Try exact match first
+            for (let option of select.options) {
+                if (option.value.toLowerCase() === suggestedCategory) {
+                    matchedOption = option.value;
+                    break;
+                }
+            }
+
+            // If no exact match, try partial match
+            if (!matchedOption) {
+                for (let option of select.options) {
+                    if (option.value && (
+                        suggestedCategory.includes(option.value.toLowerCase()) ||
+                        option.value.toLowerCase().includes(suggestedCategory)
+                    )) {
+                        matchedOption = option.value;
+                        break;
+                    }
+                }
+            }
+
+            // Set the value if match found
+            if (matchedOption) {
+                select.value = matchedOption;
+                document.getElementById('categoryConfidence').textContent =
+                    `Confidence: ${(data.confidence * 100).toFixed(0)}%`;
+                showNotification('Category suggested!');
+            } else {
+                document.getElementById('categoryConfidence').textContent =
+                    `Suggested: "${data.suggested_category}" - No exact match in dropdown`;
+                showNotification('Category suggested but not in dropdown list', true);
+            }
         } catch (error) {
             showNotification('Suggestion failed: ' + error.message, true);
         }
