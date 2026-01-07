@@ -46,13 +46,13 @@ spec:
           httpGet:
             path: /health
             port: 8000
-          initialDelaySeconds: 180
+          initialDelaySeconds: 300
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /health
             port: 8000
-          initialDelaySeconds: 150
+          initialDelaySeconds: 200
           periodSeconds: 5
       volumes:
       - name: code
