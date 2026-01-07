@@ -15,7 +15,7 @@ data:
   main.py: |
     from fastapi import FastAPI, HTTPException, Request
     from fastapi.middleware.cors import CORSMiddleware
-    from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Text
+    from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Text, func
     from sqlalchemy.ext.declarative import declarative_base
     from sqlalchemy.orm import sessionmaker, Session, relationship
     from pydantic import BaseModel
@@ -307,7 +307,7 @@ data:
             "total_customers": db.query(Customer).count(),
             "total_orders": db.query(Order).count(),
             "total_revenue": db.query(Order).with_entities(
-                sqlalchemy.func.sum(Order.total_price)
+                func.sum(Order.total_price)
             ).scalar() or 0
         }
 
