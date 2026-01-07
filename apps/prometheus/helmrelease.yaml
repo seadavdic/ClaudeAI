@@ -41,6 +41,12 @@ spec:
             scrape_interval: 30s
             metrics_path: '/metrics'
 
+          - job_name: 'smartbiz-api'
+            static_configs:
+              - targets: ['smartbiz-api.smartbiz.svc.cluster.local:8000']
+            scrape_interval: 30s
+            metrics_path: '/metrics'
+
       # Alert rules
       alerting_rules.yml:
         groups:
