@@ -1,0 +1,86 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kafka
+  namespace: flux-system
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: kafka
+      sourceRef:
+        kind: HelmRepository
+        name: bitnami
+  targetNamespace: kafka
+  install:
+    createNamespace: true
+  values:
+    # Use KRaft mode (no ZooKeeper) to save resources
+    kraft:
+      enabled: true
+
+    # Single broker for resource efficiency
+    replicaCount: 1
+
+    # Resource limits for Raspberry Pi
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+
+    # Persistent storage
+    persistence:
+      enabled: true
+      storageClass: local-path
+      size: 5Gi
+
+    # Kafka configuration
+    config: |
+      # Log retention - keep messages for 7 days
+      log.retention.hours=168
+      log.retention.bytes=1073741824
+      # Segment size - 100MB
+      log.segment.bytes=104857600
+      # Cleanup policy
+      log.cleanup.policy=delete
+      # Compression
+      compression.type=snappy
+      # Auto create topics
+      auto.create.topics.enable=true
+      # Default replication factor
+      default.replication.factor=1
+      # Min in-sync replicas
+      min.insync.replicas=1
+
+    # Listeners
+    listeners:
+      client:
+        protocol: PLAINTEXT
+      controller:
+        protocol: PLAINTEXT
+      interbroker:
+        protocol: PLAINTEXT
+
+    # Service configuration
+    service:
+      type: ClusterIP
+      ports:
+        client: 9092
+
+    # Metrics exporter for Prometheus
+    metrics:
+      kafka:
+        enabled: true
+        service:
+          port: 9308
+      jmx:
+        enabled: true
+        service:
+          port: 5556
+
+    # Disable ZooKeeper (using KRaft)
+    zookeeper:
+      enabled: false
