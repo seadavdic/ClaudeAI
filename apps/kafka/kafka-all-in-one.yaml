@@ -34,7 +34,7 @@ spec:
     spec:
       containers:
       - name: kafka
-        image: johnnypark/kafka-zookeeper
+        image: spotify/kafka:latest
         ports:
         - containerPort: 9092
           name: kafka
@@ -45,10 +45,6 @@ spec:
           value: "kafka.kafka.svc.cluster.local"
         - name: ADVERTISED_PORT
           value: "9092"
-        - name: AUTO_CREATE_TOPICS
-          value: "true"
-        - name: NUM_PARTITIONS
-          value: "3"
         resources:
           requests:
             cpu: 250m
