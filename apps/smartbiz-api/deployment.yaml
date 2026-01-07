@@ -24,6 +24,7 @@ spec:
           - sh
           - -c
           - |
+            apt-get update && apt-get install -y gcc postgresql-client libpq-dev && \
             pip install -r /app/requirements.txt && python /app/main.py
         ports:
         - containerPort: 8000
