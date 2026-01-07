@@ -474,6 +474,25 @@ data:
         }
     }
 
+    // Stock adjustment
+    async function adjustStock(articleId, change) {
+        try {
+            const response = await fetch(`${API_URL}/articles/${articleId}/stock?stock_change=${change}`, {
+                method: 'PATCH'
+            });
+
+            if (response.ok) {
+                showNotification(`Stock ${change > 0 ? 'increased' : 'decreased'} by ${Math.abs(change)}!`);
+                loadArticles(); // Refresh the list
+            } else {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to update stock');
+            }
+        } catch (error) {
+            showNotification('Error: ' + error.message, true);
+        }
+    }
+
     // Article Management
     document.getElementById('articleForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -519,6 +538,12 @@ data:
                     <p><strong>Price:</strong> €${article.price.toFixed(2)}</p>
                     <p><strong>Stock:</strong> ${article.stock}</p>
                     <p>${article.description}</p>
+                    <div style="margin-top: 10px; display: flex; gap: 5px;">
+                        <button onclick="adjustStock(${article.id}, -10)" class="ai-button" style="padding: 5px 10px; font-size: 12px;">-10</button>
+                        <button onclick="adjustStock(${article.id}, -1)" class="ai-button" style="padding: 5px 10px; font-size: 12px;">-1</button>
+                        <button onclick="adjustStock(${article.id}, 1)" class="ai-button" style="padding: 5px 10px; font-size: 12px;">+1</button>
+                        <button onclick="adjustStock(${article.id}, 10)" class="ai-button" style="padding: 5px 10px; font-size: 12px;">+10</button>
+                    </div>
                 </div>
             `).join('');
         } catch (error) {
