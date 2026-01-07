@@ -200,12 +200,55 @@ data:
     @app.post("/ai/suggest-category")
     async def suggest_category(article_name: str):
         """AI-powered category suggestion based on article name"""
+        # Categories must match dropdown options exactly
         categories = {
+            # Electronics
             "laptop": "Electronics", "phone": "Electronics", "tablet": "Electronics",
+            "computer": "Electronics", "tv": "Electronics", "camera": "Electronics",
+            "headphone": "Electronics", "speaker": "Electronics", "monitor": "Electronics",
+            "keyboard": "Electronics", "mouse": "Electronics", "charger": "Electronics",
+
+            # Clothing
             "shirt": "Clothing", "pants": "Clothing", "shoes": "Clothing",
-            "book": "Books", "novel": "Books",
-            "chair": "Furniture", "table": "Furniture", "desk": "Furniture",
-            "apple": "Food", "bread": "Food", "milk": "Food"
+            "dress": "Clothing", "jacket": "Clothing", "coat": "Clothing",
+            "jeans": "Clothing", "sweater": "Clothing", "hoodie": "Clothing",
+
+            # Food & Beverage
+            "coffee": "Food & Beverage", "tea": "Food & Beverage", "juice": "Food & Beverage",
+            "food": "Food & Beverage", "drink": "Food & Beverage", "snack": "Food & Beverage",
+            "water": "Food & Beverage", "milk": "Food & Beverage", "bread": "Food & Beverage",
+
+            # Home & Garden
+            "chair": "Home & Garden", "table": "Home & Garden", "sofa": "Home & Garden",
+            "lamp": "Home & Garden", "plant": "Home & Garden", "garden": "Home & Garden",
+            "furniture": "Home & Garden", "bed": "Home & Garden", "desk": "Home & Garden",
+
+            # Sports & Outdoors
+            "ball": "Sports & Outdoors", "bike": "Sports & Outdoors", "tent": "Sports & Outdoors",
+            "sport": "Sports & Outdoors", "outdoor": "Sports & Outdoors", "fitness": "Sports & Outdoors",
+            "gym": "Sports & Outdoors", "running": "Sports & Outdoors", "hiking": "Sports & Outdoors",
+
+            # Books & Media
+            "book": "Books & Media", "novel": "Books & Media", "magazine": "Books & Media",
+            "dvd": "Books & Media", "cd": "Books & Media", "game": "Books & Media",
+
+            # Toys & Games
+            "toy": "Toys & Games", "puzzle": "Toys & Games", "doll": "Toys & Games",
+            "lego": "Toys & Games", "playset": "Toys & Games", "boardgame": "Toys & Games",
+
+            # Health & Beauty
+            "shampoo": "Health & Beauty", "soap": "Health & Beauty", "cream": "Health & Beauty",
+            "cosmetic": "Health & Beauty", "makeup": "Health & Beauty", "skincare": "Health & Beauty",
+            "perfume": "Health & Beauty", "lotion": "Health & Beauty",
+
+            # Automotive
+            "car": "Automotive", "tire": "Automotive", "oil": "Automotive",
+            "battery": "Automotive", "automotive": "Automotive", "vehicle": "Automotive",
+
+            # Office Supplies
+            "pen": "Office Supplies", "pencil": "Office Supplies", "paper": "Office Supplies",
+            "notebook": "Office Supplies", "folder": "Office Supplies", "stapler": "Office Supplies",
+            "office": "Office Supplies", "printer": "Office Supplies"
         }
 
         article_lower = article_name.lower()
@@ -213,7 +256,8 @@ data:
             if keyword in article_lower:
                 return {"suggested_category": category, "confidence": 0.9}
 
-        return {"suggested_category": "General", "confidence": 0.5}
+        # Default to Office Supplies if no match found
+        return {"suggested_category": "Office Supplies", "confidence": 0.5}
 
     @app.post("/ai/validate-email")
     async def validate_email(email: str):
