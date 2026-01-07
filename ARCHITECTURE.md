@@ -39,6 +39,7 @@
 │  │  📝 hosts file:                │                                  │ │
 │  │  192.168.1.100 grafana.local   │                                  │ │
 │  │  192.168.1.100 prometheus.local│                                  │ │
+│  │  192.168.1.100 smartbiz.local  │                                  │ │
 │  │                                │                                  │ │
 │  │  🌐 Browser Access:            │                                  │ │
 │  │  http://grafana.local:30683 ◄──┘                                  │ │
@@ -78,6 +79,7 @@
 │  │  │                                                         │   │   │
 │  │  │  grafana.local ─────► grafana-grafana service          │   │   │
 │  │  │  prometheus.local ──► prometheus-server service        │   │   │
+│  │  │  smartbiz.local ────► smartbiz-ui service              │   │   │
 │  │  └─────────────────────────────────────────────────────────┘   │   │
 │  │                                                                 │   │
 │  │  ┌─────────────────────────────────────────────────────────┐   │   │
@@ -185,6 +187,39 @@
 │  │  │     ├─ Creates secure tunnel to Cloudflare           │      │   │
 │  │  │     ├─ Proxies: grafana-grafana.svc:80               │      │   │
 │  │  │     └─ No incoming ports needed!                     │      │   │
+│  │  └──────────────────────────────────────────────────────┘      │   │
+│  │                                                                 │   │
+│  │  ┌──────────────────────────────────────────────────────┐      │   │
+│  │  │  🗄️  SmartBiz PostgreSQL Pod                          │      │   │
+│  │  │     ├─ Image: postgres:15-alpine                     │      │   │
+│  │  │     ├─ Port: 5432                                    │      │   │
+│  │  │     ├─ Namespace: smartbiz                           │      │   │
+│  │  │     ├─ Persistent Volume: 5Gi (local-path)           │      │   │
+│  │  │     ├─ Database: smartbiz                            │      │   │
+│  │  │     └─ Tables: articles, customers, orders           │      │   │
+│  │  └──────────────────────────────────────────────────────┘      │   │
+│  │                                                                 │   │
+│  │  ┌──────────────────────────────────────────────────────┐      │   │
+│  │  │  🐍 SmartBiz API Pod (FastAPI)                       │      │   │
+│  │  │     ├─ Image: python:3.9-slim                        │      │   │
+│  │  │     ├─ Port: 8000 (/metrics, /docs, CRUD endpoints)  │      │   │
+│  │  │     ├─ Namespace: smartbiz                           │      │   │
+│  │  │     ├─ Business logic with SQLAlchemy ORM            │      │   │
+│  │  │     ├─ Stock management & order processing           │      │   │
+│  │  │     ├─ Prometheus metrics integration                │      │   │
+│  │  │     └─ Auto stock reduction on orders                │      │   │
+│  │  └──────────────────────────────────────────────────────┘      │   │
+│  │                                                                 │   │
+│  │  ┌──────────────────────────────────────────────────────┐      │   │
+│  │  │  🌐 SmartBiz UI Pod (Nginx + SPA)                    │      │   │
+│  │  │     ├─ Image: nginx:alpine                           │      │   │
+│  │  │     ├─ Port: 80                                      │      │   │
+│  │  │     ├─ Namespace: smartbiz                           │      │   │
+│  │  │     ├─ Single-page app (vanilla JS)                  │      │   │
+│  │  │     ├─ Forms for Articles, Customers, Orders         │      │   │
+│  │  │     ├─ Stock adjustment UI (+/- buttons)             │      │   │
+│  │  │     ├─ Ingress: http://smartbiz.local:30683          │      │   │
+│  │  │     └─ External: Cloudflare Tunnel                   │      │   │
 │  │  └──────────────────────────────────────────────────────┘      │   │
 │  │                                                                 │   │
 │  │  ┌──────────────────────────────────────────────────────┐      │   │
@@ -539,8 +574,32 @@ yourname/ClaudeAI/
 │   │   ├── 📄 helmrelease.yaml                ← MetalLB deployment
 │   │   └── 📄 ippool.yaml                     ← IP pool + L2 advertisement
 │   │
-│   └── 📁 cloudflared/
-│       └── 📄 deployment.yaml                 ← Cloudflare Tunnel
+│   ├── 📁 cloudflared/
+│   │   └── 📄 deployment.yaml                 ← Cloudflare Tunnel
+│   │
+│   ├── 📁 smartbiz-db/
+│   │   ├── 📄 namespace.yaml                  ← smartbiz namespace
+│   │   ├── 📄 secret.yaml                     ← PostgreSQL credentials
+│   │   ├── 📄 deployment.yaml                 ← PostgreSQL 15 Alpine
+│   │   ├── 📄 service.yaml                    ← Database service
+│   │   ├── 📄 pvc.yaml                        ← 5Gi persistent storage
+│   │   └── 📄 kustomization.yaml              ← Kustomize config
+│   │
+│   ├── 📁 smartbiz-api/
+│   │   ├── 📄 configmap.yaml                  ← FastAPI application code
+│   │   ├── 📄 requirements.yaml               ← Python dependencies
+│   │   ├── 📄 deployment.yaml                 ← API pod with probes
+│   │   ├── 📄 service.yaml                    ← API service
+│   │   └── 📄 kustomization.yaml              ← Kustomize config
+│   │
+│   └── 📁 smartbiz-ui/
+│       ├── 📄 configmap.yaml                  ← HTML + CSS + JavaScript
+│       ├── 📄 nginx-config.yaml               ← Nginx reverse proxy config
+│       ├── 📄 deployment.yaml                 ← Nginx pod
+│       ├── 📄 service.yaml                    ← UI service
+│       ├── 📄 ingress.yaml                    ← Traefik ingress
+│       ├── 📄 cloudflared-deployment.yaml     ← Public tunnel
+│       └── 📄 kustomization.yaml              ← Kustomize config
 │
 ├── 📁 clusters/my-cluster/                     ← Flux Configuration
 │   ├── 📁 flux-system/
@@ -685,6 +744,25 @@ yourname/ClaudeAI/
   │  Generates random web server metrics every 60s           │
   └──────────────────────────────────────────────────────────┘
 
+  🏪 SMARTBIZ (Business Management Application)
+  ┌──────────────────────────────────────────────────────────┐
+  │  Local:  http://smartbiz.local:30683                     │
+  │  External: https://leslie-shortcuts-jokes-cart.          │
+  │            trycloudflare.com                             │
+  │                                                          │
+  │  Features:                                               │
+  │  ├─ Manage Articles (with stock tracking)                │
+  │  ├─ Manage Customers                                     │
+  │  ├─ Create Orders (auto stock reduction)                 │
+  │  ├─ Stock adjustment UI (+10, +1, -1, -10)               │
+  │  └─ Business metrics in Grafana dashboard                │
+  │                                                          │
+  │  Backend:                                                │
+  │  ├─ FastAPI + PostgreSQL 15                              │
+  │  ├─ Prometheus metrics at /metrics                       │
+  │  └─ API docs at /docs                                    │
+  └──────────────────────────────────────────────────────────┘
+
   💡 REQUIREMENTS FOR LOCAL ACCESS:
   ┌──────────────────────────────────────────────────────────┐
   │  Add to Windows hosts file:                              │
@@ -692,6 +770,7 @@ yourname/ClaudeAI/
   │                                                          │
   │  192.168.1.100 grafana.local                             │
   │  192.168.1.100 prometheus.local                          │
+  │  192.168.1.100 smartbiz.local                            │
   └──────────────────────────────────────────────────────────┘
 ```
 
@@ -854,6 +933,13 @@ yourname/ClaudeAI/
   ├─ Log Generator App (multi-level logs)
   ├─ REST API (Flask with rich logging)
   ├─ Batch Job Simulator (CronJob)
+  ├─ SmartBiz Application (Full-stack business app)
+  │   ├─ PostgreSQL database (15 Alpine)
+  │   ├─ FastAPI backend (CRUD + metrics)
+  │   ├─ Single-page UI (Nginx + vanilla JS)
+  │   ├─ Stock management system
+  │   ├─ Business metrics dashboard (Grafana)
+  │   └─ Public access via Cloudflare Tunnel
   └─ Complete observability stack (metrics + logs)
 
 ┌─────────────────────────────────────────────────────────────────┐
@@ -896,8 +982,9 @@ yourname/ClaudeAI/
 ---
 
 **Created:** 2026-01-04
-**Last Updated:** 2026-01-06
+**Last Updated:** 2026-01-07
 **Cluster:** 2x Raspberry Pi (ARMv7)
 **GitOps:** Flux CD
-**Monitoring:** Prometheus + Grafana + Custom Metrics App
+**Monitoring:** Prometheus + Grafana + Loki + Custom Apps
+**Applications:** SmartBiz (PostgreSQL + FastAPI + SPA)
 **Public Access:** Cloudflare Tunnel
