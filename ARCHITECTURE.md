@@ -958,13 +958,9 @@ yourname/ClaudeAI/
   └─ Your custom apps!
 
   🔒 Security
+  ├─ ✅ Sealed Secrets (IMPLEMENTED - encrypted credentials in Git)
   ├─ cert-manager (automatic SSL certificates)
   ├─ OAuth2 Proxy (authentication)
-  ├─ Secrets Management
-  │  ├─ Kubernetes Secrets (base64-encoded, basic protection)
-  │  ├─ Sealed Secrets (encrypted, GitOps-safe)
-  │  ├─ HashiCorp Vault (enterprise-grade, dynamic secrets)
-  │  └─ External Secrets Operator (sync from external stores)
   └─ Network Policies (pod firewall)
 
   🚀 CI/CD Pipeline
@@ -986,6 +982,69 @@ yourname/ClaudeAI/
   └─ Disaster recovery procedures
 
   All deployed via GitOps - just commit to Git! 🚀
+```
+
+---
+
+## 🔐 Sealed Secrets - Credentials Management
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    SEALED SECRETS SECURITY LAYER                        │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  🔒 Controller: sealed-secrets-controller (kube-system namespace)
+  🔑 Encryption: RSA-4096 asymmetric encryption
+  ✅ Status: Active - All cluster credentials encrypted
+
+  📦 Protected Credentials:
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │  RabbitMQ Credentials (rabbitmq namespace)                  │
+  │  ├─ username: ****                                          │
+  │  ├─ password: ****                                          │
+  │  └─ Used by: RabbitMQ deployment, Order Pipeline services   │
+  └─────────────────────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │  PostgreSQL Database (smartbiz namespace)                   │
+  │  ├─ POSTGRES_USER: ****                                     │
+  │  ├─ POSTGRES_PASSWORD: ****                                 │
+  │  ├─ POSTGRES_DB: smartbiz                                   │
+  │  └─ Used by: PostgreSQL deployment, SmartBiz API            │
+  └─────────────────────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │  Grafana Admin (grafana namespace)                          │
+  │  ├─ admin-user: admin                                       │
+  │  ├─ admin-password: ****                                    │
+  │  └─ Used by: Grafana HelmRelease                            │
+  └─────────────────────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │  Order Pipeline (order-pipeline namespace)                  │
+  │  ├─ username: ****                                          │
+  │  ├─ password: ****                                          │
+  │  └─ Used by: All 4 microservices                            │
+  └─────────────────────────────────────────────────────────────┘
+
+  🔄 Workflow:
+
+  Developer              Git Repo                 Cluster
+  ─────────              ────────                 ───────
+
+  1. Create Secret   →   2. Encrypt with      →   3. Auto-decrypt
+     (plaintext)            kubeseal CLI             by controller
+                            (safe in Git!)           (in memory only)
+
+  🛡️  Security Benefits:
+  ✓ No plaintext passwords in Git repository
+  ✓ GitOps-compatible encrypted secrets
+  ✓ Only cluster can decrypt (private key protected)
+  ✓ Namespace-scoped security
+  ✓ Full audit trail in Git history
+
+  📚 Documentation: docs/SEALED-SECRETS.md
 ```
 
 ---
