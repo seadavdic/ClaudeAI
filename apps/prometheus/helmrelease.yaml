@@ -77,29 +77,8 @@ spec:
             scrape_interval: 30s
             metrics_path: '/metrics'
 
-          - job_name: 'flux-source-controller'
-            static_configs:
-              - targets: ['source-controller.flux-system.svc.cluster.local:8080']
-            scrape_interval: 30s
-            metrics_path: '/metrics'
-
-          - job_name: 'flux-kustomize-controller'
-            static_configs:
-              - targets: ['kustomize-controller.flux-system.svc.cluster.local:8080']
-            scrape_interval: 30s
-            metrics_path: '/metrics'
-
-          - job_name: 'flux-helm-controller'
-            static_configs:
-              - targets: ['helm-controller.flux-system.svc.cluster.local:8080']
-            scrape_interval: 30s
-            metrics_path: '/metrics'
-
-          - job_name: 'flux-notification-controller'
-            static_configs:
-              - targets: ['notification-controller.flux-system.svc.cluster.local:8080']
-            scrape_interval: 30s
-            metrics_path: '/metrics'
+      # Flux controllers are auto-discovered via kubernetes-pods scrape config
+      # No static scrape configs needed for Flux controllers
 
       # Alert rules
       alerting_rules.yml:

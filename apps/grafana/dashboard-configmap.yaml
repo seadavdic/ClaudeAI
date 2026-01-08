@@ -1788,14 +1788,14 @@ data:
       "panels": [
         {
           "id": 1,
-          "title": "Kustomization Status",
+          "title": "Active Kustomizations",
           "type": "stat",
           "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0},
           "targets": [{
-            "expr": "count(gotk_reconcile_condition{kind=\"Kustomization\", type=\"Ready\", status=\"True\"})",
+            "expr": "count(count by (name, namespace) (gotk_reconcile_duration_seconds_count{kind=\"Kustomization\"}))",
             "refId": "A",
             "datasource": {"type": "prometheus", "uid": "Prometheus"},
-            "legendFormat": "Ready"
+            "legendFormat": "Active"
           }],
           "fieldConfig": {
             "defaults": {
@@ -1818,14 +1818,14 @@ data:
         },
         {
           "id": 2,
-          "title": "HelmRelease Status",
+          "title": "Active HelmReleases",
           "type": "stat",
           "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0},
           "targets": [{
-            "expr": "count(gotk_reconcile_condition{kind=\"HelmRelease\", type=\"Ready\", status=\"True\"})",
+            "expr": "count(count by (name, namespace) (gotk_reconcile_duration_seconds_count{kind=\"HelmRelease\"}))",
             "refId": "A",
             "datasource": {"type": "prometheus", "uid": "Prometheus"},
-            "legendFormat": "Ready"
+            "legendFormat": "Active"
           }],
           "fieldConfig": {
             "defaults": {
@@ -1848,14 +1848,14 @@ data:
         },
         {
           "id": 3,
-          "title": "GitRepository Sync Status",
+          "title": "Active GitRepositories",
           "type": "stat",
           "gridPos": {"h": 6, "w": 6, "x": 12, "y": 0},
           "targets": [{
-            "expr": "count(gotk_reconcile_condition{kind=\"GitRepository\", type=\"Ready\", status=\"True\"})",
+            "expr": "count(count by (name, namespace) (gotk_reconcile_duration_seconds_count{kind=\"GitRepository\"}))",
             "refId": "A",
             "datasource": {"type": "prometheus", "uid": "Prometheus"},
-            "legendFormat": "Synced"
+            "legendFormat": "Syncing"
           }],
           "fieldConfig": {
             "defaults": {
@@ -1878,14 +1878,14 @@ data:
         },
         {
           "id": 4,
-          "title": "Failed Reconciliations",
+          "title": "Total Reconciliations (5m)",
           "type": "stat",
           "gridPos": {"h": 6, "w": 6, "x": 18, "y": 0},
           "targets": [{
-            "expr": "count(gotk_reconcile_condition{type=\"Ready\", status=\"False\"})",
+            "expr": "sum(increase(gotk_reconcile_duration_seconds_count[5m]))",
             "refId": "A",
             "datasource": {"type": "prometheus", "uid": "Prometheus"},
-            "legendFormat": "Failed"
+            "legendFormat": "Total"
           }],
           "fieldConfig": {
             "defaults": {
@@ -1893,8 +1893,7 @@ data:
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  {"value": null, "color": "green"},
-                  {"value": 1, "color": "red"}
+                  {"value": null, "color": "blue"}
                 ]
               },
               "unit": "short"
@@ -1902,7 +1901,7 @@ data:
           },
           "options": {
             "colorMode": "background",
-            "graphMode": "none",
+            "graphMode": "area",
             "orientation": "auto"
           }
         },
@@ -1962,11 +1961,11 @@ data:
         },
         {
           "id": 7,
-          "title": "Resources by Status",
+          "title": "Flux Resources Activity",
           "type": "table",
           "gridPos": {"h": 10, "w": 24, "x": 0, "y": 14},
           "targets": [{
-            "expr": "gotk_reconcile_condition",
+            "expr": "sum by (kind, name, namespace) (gotk_reconcile_duration_seconds_count)",
             "refId": "A",
             "datasource": {"type": "prometheus", "uid": "Prometheus"},
             "format": "table",
@@ -1982,25 +1981,19 @@ data:
               "options": {
                 "excludeByName": {
                   "Time": true,
-                  "__name__": true,
-                  "instance": true,
-                  "job": true
+                  "__name__": true
                 },
                 "indexByName": {
                   "kind": 0,
                   "name": 1,
                   "namespace": 2,
-                  "type": 3,
-                  "status": 4,
-                  "Value": 5
+                  "Value": 3
                 },
                 "renameByName": {
                   "kind": "Resource Type",
                   "name": "Name",
                   "namespace": "Namespace",
-                  "type": "Condition",
-                  "status": "Status",
-                  "Value": "Ready"
+                  "Value": "Total Reconciliations"
                 }
               }
             }
@@ -2012,14 +2005,14 @@ data:
         },
         {
           "id": 8,
-          "title": "Controller Status",
+          "title": "Flux Controllers Status",
           "type": "stat",
           "gridPos": {"h": 6, "w": 8, "x": 0, "y": 24},
           "targets": [{
-            "expr": "up{namespace=\"flux-system\"}",
+            "expr": "count(up{job=\"kubernetes-pods\", namespace=\"flux-system\", app=~\".*-controller\"})",
             "refId": "A",
             "datasource": {"type": "prometheus", "uid": "Prometheus"},
-            "legendFormat": "{{pod}}"
+            "legendFormat": "Controllers Running"
           }],
           "fieldConfig": {
             "defaults": {
@@ -2028,13 +2021,12 @@ data:
                 "mode": "absolute",
                 "steps": [
                   {"value": null, "color": "red"},
-                  {"value": 1, "color": "green"}
+                  {"value": 3, "color": "yellow"},
+                  {"value": 4, "color": "green"}
                 ]
               },
-              "mappings": [
-                {"type": "value", "value": "1", "text": "UP"},
-                {"type": "value", "value": "0", "text": "DOWN"}
-              ]
+              "mappings": [],
+              "unit": "short"
             }
           },
           "options": {
@@ -2050,14 +2042,14 @@ data:
         },
         {
           "id": 9,
-          "title": "Suspended Resources",
+          "title": "Reconciliation Activity",
           "type": "stat",
           "gridPos": {"h": 6, "w": 8, "x": 8, "y": 24},
           "targets": [{
-            "expr": "count(gotk_suspend_status{suspended=\"true\"})",
+            "expr": "sum(rate(gotk_reconcile_duration_seconds_count[1m]) * 60)",
             "refId": "A",
             "datasource": {"type": "prometheus", "uid": "Prometheus"},
-            "legendFormat": "Suspended"
+            "legendFormat": "Per Minute"
           }],
           "fieldConfig": {
             "defaults": {
@@ -2065,29 +2057,28 @@ data:
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  {"value": null, "color": "green"},
-                  {"value": 1, "color": "yellow"}
+                  {"value": null, "color": "blue"}
                 ]
               },
-              "unit": "short"
+              "unit": "ops"
             }
           },
           "options": {
             "colorMode": "background",
-            "graphMode": "none",
+            "graphMode": "area",
             "orientation": "auto"
           }
         },
         {
           "id": 10,
-          "title": "Last Successful Sync",
+          "title": "Avg Reconciliation Time",
           "type": "stat",
           "gridPos": {"h": 6, "w": 8, "x": 16, "y": 24},
           "targets": [{
-            "expr": "time() - max(gotk_reconcile_condition{type=\"Ready\", status=\"True\"} * on() group_left() timestamp(gotk_reconcile_condition))",
+            "expr": "avg(rate(gotk_reconcile_duration_seconds_sum[5m]) / rate(gotk_reconcile_duration_seconds_count[5m]))",
             "refId": "A",
             "datasource": {"type": "prometheus", "uid": "Prometheus"},
-            "legendFormat": "Ago"
+            "legendFormat": "Average"
           }],
           "fieldConfig": {
             "defaults": {
@@ -2096,8 +2087,8 @@ data:
                 "mode": "absolute",
                 "steps": [
                   {"value": null, "color": "green"},
-                  {"value": 300, "color": "yellow"},
-                  {"value": 600, "color": "red"}
+                  {"value": 2, "color": "yellow"},
+                  {"value": 5, "color": "red"}
                 ]
               },
               "unit": "s"
@@ -2105,7 +2096,7 @@ data:
           },
           "options": {
             "colorMode": "background",
-            "graphMode": "none",
+            "graphMode": "area",
             "orientation": "auto"
           }
         }
