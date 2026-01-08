@@ -1,1 +1,19 @@
 .claude/settings.local.json
+
+# Binaries and executables
+kubeseal*
+*.exe
+*.tar.gz
+
+# License files (if not needed)
+LICENSE
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# IDE files
+.vscode/
+.idea/
