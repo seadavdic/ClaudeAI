@@ -1629,9 +1629,10 @@ yourname/ClaudeAI/
 ---
 
 **Created:** 2026-01-04
-**Last Updated:** 2026-01-07
+**Last Updated:** 2026-01-08
 **Cluster:** 2x Raspberry Pi (ARMv7)
-**GitOps:** Flux CD
-**Monitoring:** Prometheus + Grafana + Loki + Custom Apps
-**Applications:** SmartBiz (PostgreSQL + FastAPI + SPA)
+**GitOps:** Flux CD (v1.7.3)
+**Monitoring:** Prometheus + Grafana (6 dashboards) + Loki + Custom Apps
+**Security:** Sealed Secrets (RSA-4096 encryption)
+**Applications:** SmartBiz (PostgreSQL + FastAPI + SPA) + RabbitMQ Order Pipeline
 **Public Access:** Cloudflare Tunnel
