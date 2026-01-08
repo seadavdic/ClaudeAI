@@ -13,6 +13,7 @@ data:
     """Common utilities for all services"""
     import json
     import logging
+    import os
     from datetime import datetime
     import pika
     import time
@@ -33,7 +34,9 @@ data:
 
     def get_rabbitmq_connection():
         """Get RabbitMQ connection with retry"""
-        credentials = pika.PlainCredentials('admin', 'admin123')
+        rabbitmq_user = os.getenv('RABBITMQ_USER', 'admin')
+        rabbitmq_pass = os.getenv('RABBITMQ_PASS', 'admin123')
+        credentials = pika.PlainCredentials(rabbitmq_user, rabbitmq_pass)
         parameters = pika.ConnectionParameters(
             host='rabbitmq.rabbitmq.svc.cluster.local',
             port=5672,

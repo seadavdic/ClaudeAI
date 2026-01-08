@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: order-pipeline
 resources:
   - namespace.yaml
+  - sealed-secret.yaml
   - configmap.yaml
   - deployments.yaml
   - services.yaml

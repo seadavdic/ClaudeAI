@@ -27,6 +27,17 @@ spec:
         ports:
         - containerPort: 8000
           name: metrics
+        env:
+        - name: RABBITMQ_USER
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-credentials
+              key: username
+        - name: RABBITMQ_PASS
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-credentials
+              key: password
         volumeMounts:
         - name: code
           mountPath: /app
@@ -71,6 +82,17 @@ spec:
         ports:
         - containerPort: 8001
           name: metrics
+        env:
+        - name: RABBITMQ_USER
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-credentials
+              key: username
+        - name: RABBITMQ_PASS
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-credentials
+              key: password
         volumeMounts:
         - name: code
           mountPath: /app
@@ -115,6 +137,17 @@ spec:
         ports:
         - containerPort: 8002
           name: metrics
+        env:
+        - name: RABBITMQ_USER
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-credentials
+              key: username
+        - name: RABBITMQ_PASS
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-credentials
+              key: password
         volumeMounts:
         - name: code
           mountPath: /app
@@ -159,6 +192,17 @@ spec:
         ports:
         - containerPort: 8003
           name: metrics
+        env:
+        - name: RABBITMQ_USER
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-credentials
+              key: username
+        - name: RABBITMQ_PASS
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-credentials
+              key: password
         volumeMounts:
         - name: code
           mountPath: /app

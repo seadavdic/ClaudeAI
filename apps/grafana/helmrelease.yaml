@@ -15,6 +15,10 @@ spec:
   install:
     createNamespace: true
   values:
+    admin:
+      existingSecret: grafana-admin
+      userKey: admin-user
+      passwordKey: admin-password
     service:
       type: ClusterIP
       port: 80

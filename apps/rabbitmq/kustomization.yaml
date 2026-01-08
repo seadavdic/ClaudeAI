@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: rabbitmq
 resources:
   - namespace.yaml
+  - sealed-secret.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml
