@@ -10,6 +10,7 @@ All project documentation is located in the **[docs/](docs/)** folder:
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Detailed architecture diagrams and technical design
 - **[INSTALLATION-GUIDE.md](docs/INSTALLATION-GUIDE.md)** - Step-by-step installation instructions
 - **[SEALED-SECRETS.md](docs/SEALED-SECRETS.md)** - Secrets management guide
+- **[FLUX-DASHBOARD.md](docs/FLUX-DASHBOARD.md)** - GitOps monitoring dashboard guide ⭐ NEW!
 - **[SMARTBIZ.md](docs/SMARTBIZ.md)** - SmartBiz application documentation
 - **[RABBITMQ-PIPELINE.md](docs/RABBITMQ-PIPELINE.md)** - Order processing pipeline
 - **[LOKI-SETUP-SUMMARY.md](docs/LOKI-SETUP-SUMMARY.md)** - Logging stack setup
@@ -23,7 +24,16 @@ kubectl get pods -A
 
 # View Grafana dashboards
 http://grafana.local:30683
+# Credentials: See docs/SEALED-SECRETS.md
 ```
+
+## 📊 Available Dashboards
+
+- **SmartBiz Business Metrics** - Business KPIs and order tracking
+- **Order Pipeline Status** - RabbitMQ event-driven microservices
+- **Flux GitOps Status** - Monitor your GitOps deployment health ⭐ NEW!
+- **Web Server Metrics** - HTTP request tracking
+- **System Metrics** - Node and pod resource usage
 
 ## 🔐 Security Features
 
