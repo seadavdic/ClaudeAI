@@ -1507,8 +1507,12 @@ yourname/ClaudeAI/
 
   🐰 RabbitMQ Management UI
   ┌──────────────────────────────────────────────────────────────┐
-  │  URL: http://rabbitmq.local:30683                           │
+  │  URL (HTTPS): https://rabbitmq.local:32742  ✅              │
+  │  URL (HTTP):  http://rabbitmq.local:30683                   │
+  │               (auto-redirects to HTTPS)                     │
   │  Login: admin / ***                                         │
+  │                                                              │
+  │  🔒 Security: TLS via cert-manager                          │
   │                                                              │
   │  Features:                                                   │
   │  ├─ Overview: Connections, channels, queues, messages/sec   │
@@ -1524,7 +1528,9 @@ yourname/ClaudeAI/
 
   📊 Grafana Dashboard
   ┌──────────────────────────────────────────────────────────────┐
-  │  URL: http://grafana.local:30683                            │
+  │  URL (HTTPS): https://grafana.local:32742  ✅               │
+  │  URL (HTTP):  http://grafana.local:30683                    │
+  │               (auto-redirects to HTTPS)                     │
   │  Dashboard: "RabbitMQ & Order Pipeline"                     │
   │                                                              │
   │  View:                                                       │
