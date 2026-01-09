@@ -183,6 +183,12 @@ Automatically redirects all HTTP traffic to HTTPS (permanent 301 redirect).
 
 ## 🚀 Accessing Services with HTTPS
 
+### Port Configuration
+
+Traefik exposes services via NodePort:
+- **HTTP (port 80)**: NodePort 30683
+- **HTTPS (port 443)**: NodePort 32742
+
 ### Before cert-manager:
 ```
 http://grafana.local:30683
@@ -193,10 +199,13 @@ http://rabbitmq.local:30683
 
 ### After cert-manager:
 ```
-https://grafana.local:30683  ← Automatically redirects from HTTP
-https://prometheus.local:30683
-https://smartbiz.local:30683
-https://rabbitmq.local:30683
+https://grafana.local:32742  ← HTTPS on port 32742
+https://prometheus.local:32742
+https://smartbiz.local:32742
+https://rabbitmq.local:32742
+
+# HTTP automatically redirects to HTTPS
+http://grafana.local:30683  → https://grafana.local:32742
 ```
 
 ## 🔧 Trusting the CA Certificate (Client Side)

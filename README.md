@@ -25,9 +25,11 @@ All project documentation is located in the **[docs/](docs/)** folder:
 kubectl get pods -A
 
 # View Grafana dashboards (HTTPS enabled)
-https://grafana.local:30683
+https://grafana.local:32742
 # Credentials: See docs/SEALED-SECRETS.md
 # CA Trust: See docs/CERT-MANAGER.md
+
+# Note: HTTP (port 30683) automatically redirects to HTTPS (port 32742)
 ```
 
 ## 📊 Available Dashboards
