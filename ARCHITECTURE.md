@@ -44,7 +44,8 @@
 │  │  <cluster-ip> alertmanager.local                                  │ │
 │  │                                │                                  │ │
 │  │  🌐 Browser Access:            │                                  │ │
-│  │  http://grafana.local:30683 ◄──┘                                  │ │
+│  │  https://grafana.local:32742 ◄──┘ (HTTPS via cert-manager)       │ │
+│  │  http://grafana.local:30683  (redirects to HTTPS)                │ │
 │  └───────────────────────────────────────────────────────────────────┘ │
 │                                                                         │
 │         │ Kubernetes API (6443)                                        │
@@ -76,12 +77,14 @@
 │  │  ┌─────────────────────────────────────────────────────────┐   │   │
 │  │  │          🚦 Traefik Ingress Controller                  │   │   │
 │  │  │                                                         │   │   │
-│  │  │  NodePort: 30683 (HTTP)                                │   │   │
+│  │  │  NodePort: 30683 (HTTP) / 32742 (HTTPS)               │   │   │
+│  │  │  TLS Termination: cert-manager certificates            │   │   │
 │  │  │  Routes traffic based on hostname                      │   │   │
 │  │  │                                                         │   │   │
 │  │  │  grafana.local ─────► grafana-grafana service          │   │   │
 │  │  │  prometheus.local ──► prometheus-server service        │   │   │
 │  │  │  smartbiz.local ────► smartbiz-ui service              │   │   │
+│  │  │  HTTP → HTTPS redirect (automatic)                     │   │   │
 │  │  └─────────────────────────────────────────────────────────┘   │   │
 │  │                                                                 │   │
 │  │  ┌─────────────────────────────────────────────────────────┐   │   │
@@ -710,12 +713,16 @@ yourname/ClaudeAI/
 
   📊 GRAFANA (Dashboards & Visualizations)
   ┌──────────────────────────────────────────────────────────┐
-  │  Local:  http://grafana.local:30683                      │
+  │  Local (HTTPS):  https://grafana.local:32742  ✅         │
+  │  Local (HTTP):   http://grafana.local:30683              │
+  │                  (auto-redirects to HTTPS)               │
   │  External: https://[tunnel].trycloudflare.com            │
   │                                                          │
   │  🔐 Login:                                               │
   │    Username: admin                                       │
   │    Password: <your-grafana-password>                     │
+  │                                                          │
+  │  🔒 Security: TLS via cert-manager                       │
   │                                                          │
   │  Features:                                               │
   │  ├─ Web Server Metrics dashboard                         │
@@ -725,7 +732,11 @@ yourname/ClaudeAI/
 
   📈 PROMETHEUS (Metrics & Time-Series DB)
   ┌──────────────────────────────────────────────────────────┐
-  │  Local:  http://prometheus.local:30683                   │
+  │  Local (HTTPS):  https://prometheus.local:32742  ✅      │
+  │  Local (HTTP):   http://prometheus.local:30683           │
+  │                  (auto-redirects to HTTPS)               │
+  │                                                          │
+  │  🔒 Security: TLS via cert-manager                       │
   │                                                          │
   │  Features:                                               │
   │  ├─ Query metrics with PromQL                            │
@@ -748,9 +759,13 @@ yourname/ClaudeAI/
 
   🏪 SMARTBIZ (Business Management Application)
   ┌──────────────────────────────────────────────────────────┐
-  │  Local:  http://smartbiz.local:30683                     │
+  │  Local (HTTPS):  https://smartbiz.local:32742  ✅        │
+  │  Local (HTTP):   http://smartbiz.local:30683             │
+  │                  (auto-redirects to HTTPS)               │
   │  External: https://leslie-shortcuts-jokes-cart.          │
   │            trycloudflare.com                             │
+  │                                                          │
+  │  🔒 Security: TLS via cert-manager                       │
   │                                                          │
   │  Features:                                               │
   │  ├─ Manage Articles (with stock tracking)                │
@@ -927,7 +942,9 @@ yourname/ClaudeAI/
   ✅ IMPLEMENTED:
   ├─ k3s Kubernetes cluster (2 nodes)
   ├─ Flux CD GitOps automation
-  ├─ Traefik Ingress Controller
+  ├─ Traefik Ingress Controller (TLS-enabled)
+  ├─ cert-manager (Automatic SSL/TLS certificates)
+  ├─ Sealed Secrets (Encrypted credentials - RSA-4096)
   ├─ Cloudflare Tunnel (public access)
   ├─ Grafana (dashboards & visualization)
   ├─ Prometheus (metrics collection & storage)
@@ -937,6 +954,11 @@ yourname/ClaudeAI/
   ├─ Log Generator App (multi-level logs)
   ├─ REST API (Flask with rich logging)
   ├─ Batch Job Simulator (CronJob)
+  ├─ RabbitMQ (Message broker + Order Pipeline)
+  │   ├─ RabbitMQ 3.13 (management + Prometheus metrics)
+  │   ├─ 4 microservices (order, payment, fulfillment, notification)
+  │   ├─ Fanout exchange pattern
+  │   └─ Complete order processing pipeline
   ├─ SmartBiz Application (Full-stack business app)
   │   ├─ PostgreSQL database (15 Alpine)
   │   ├─ FastAPI backend (CRUD + metrics)
@@ -960,8 +982,9 @@ yourname/ClaudeAI/
   🔒 Security
   ├─ ✅ Sealed Secrets (IMPLEMENTED - encrypted credentials in Git)
   ├─ ✅ cert-manager (IMPLEMENTED - automatic SSL/TLS certificates)
-  ├─ OAuth2 Proxy (authentication)
-  └─ Network Policies (pod firewall)
+  ├─ ✅ HTTPS Everywhere (IMPLEMENTED - TLS termination + auto HTTP→HTTPS redirect)
+  ├─ OAuth2 Proxy (authentication layer)
+  └─ Network Policies (pod-level firewall)
 
   🚀 CI/CD Pipeline
   ├─ Tekton Pipelines (cloud-native CI/CD)
@@ -1629,10 +1652,10 @@ yourname/ClaudeAI/
 ---
 
 **Created:** 2026-01-04
-**Last Updated:** 2026-01-08
+**Last Updated:** 2026-01-09
 **Cluster:** 2x Raspberry Pi (ARMv7)
 **GitOps:** Flux CD (v1.7.3)
 **Monitoring:** Prometheus + Grafana (6 dashboards) + Loki + Custom Apps
-**Security:** Sealed Secrets (RSA-4096 encryption)
+**Security:** Sealed Secrets (RSA-4096) + cert-manager (SSL/TLS) + HTTPS Everywhere
 **Applications:** SmartBiz (PostgreSQL + FastAPI + SPA) + RabbitMQ Order Pipeline
 **Public Access:** Cloudflare Tunnel
