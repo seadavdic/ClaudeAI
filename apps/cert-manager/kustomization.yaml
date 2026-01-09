@@ -4,6 +4,8 @@ resources:
   - namespace.yaml
   - helmrepository.yaml
   - helmrelease.yaml
-  - clusterissuer.yaml
-  - certificates.yaml
   - redirect-middleware.yaml
+  # ClusterIssuers and Certificates will be applied after CRDs are installed
+  # Uncomment after cert-manager is running:
+  # - clusterissuer.yaml
+  # - certificates.yaml
