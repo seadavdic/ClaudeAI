@@ -1,0 +1,85 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: cert-manager
+  namespace: cert-manager
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: cert-manager
+      version: '1.13.3'  # Verified ARM32 support
+      sourceRef:
+        kind: HelmRepository
+        name: jetstack
+        namespace: cert-manager
+      interval: 12h
+
+  install:
+    crds: Create
+
+  upgrade:
+    crds: CreateReplace
+
+  values:
+    # Install CRDs required for Certificate, Issuer, ClusterIssuer resources
+    installCRDs: true
+
+    # Global settings
+    global:
+      leaderElection:
+        namespace: cert-manager
+
+    # Controller component
+    controller:
+      replicaCount: 1
+
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+
+      # ARM32 compatibility
+      nodeSelector:
+        kubernetes.io/arch: arm
+
+    # Webhook component
+    webhook:
+      replicaCount: 1
+
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+
+      # ARM32 compatibility
+      nodeSelector:
+        kubernetes.io/arch: arm
+
+    # CA Injector component
+    cainjector:
+      replicaCount: 1
+
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+
+      # ARM32 compatibility
+      nodeSelector:
+        kubernetes.io/arch: arm
+
+    # Prometheus metrics
+    prometheus:
+      enabled: true
+      servicemonitor:
+        enabled: false  # We'll use manual scrape configs

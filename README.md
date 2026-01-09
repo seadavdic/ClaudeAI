@@ -9,7 +9,8 @@ All project documentation is located in the **[docs/](docs/)** folder:
 - **[CLUSTER-OVERVIEW.md](docs/CLUSTER-OVERVIEW.md)** - Complete cluster overview and access points
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Detailed architecture diagrams and technical design
 - **[INSTALLATION-GUIDE.md](docs/INSTALLATION-GUIDE.md)** - Step-by-step installation instructions
-- **[GRAFANA-DASHBOARDS.md](docs/GRAFANA-DASHBOARDS.md)** - Complete guide to all 6 dashboards ⭐ NEW!
+- **[GRAFANA-DASHBOARDS.md](docs/GRAFANA-DASHBOARDS.md)** - Complete guide to all 6 dashboards
+- **[CERT-MANAGER.md](docs/CERT-MANAGER.md)** - Automatic SSL/TLS certificate management ⭐ NEW!
 - **[SEALED-SECRETS.md](docs/SEALED-SECRETS.md)** - Secrets management guide
 - **[FLUX-DASHBOARD.md](docs/FLUX-DASHBOARD.md)** - GitOps monitoring dashboard guide
 - **[SMARTBIZ.md](docs/SMARTBIZ.md)** - SmartBiz application documentation
@@ -23,9 +24,10 @@ All project documentation is located in the **[docs/](docs/)** folder:
 # Access your cluster
 kubectl get pods -A
 
-# View Grafana dashboards
-http://grafana.local:30683
+# View Grafana dashboards (HTTPS enabled)
+https://grafana.local:30683
 # Credentials: See docs/SEALED-SECRETS.md
+# CA Trust: See docs/CERT-MANAGER.md
 ```
 
 ## 📊 Available Dashboards
@@ -41,7 +43,9 @@ http://grafana.local:30683
 
 ## 🔐 Security Features
 
-✅ **Sealed Secrets** - Encrypted credentials in Git
+✅ **Sealed Secrets** - Encrypted credentials in Git (RSA-4096)
+✅ **cert-manager** - Automatic SSL/TLS certificates for all services
+✅ **HTTPS Everywhere** - All services secured with TLS termination
 ✅ **GitOps** - Automated deployments via Flux CD
 ✅ **ARM32 Compatible** - Optimized for Raspberry Pi
 

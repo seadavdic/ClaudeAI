@@ -4,9 +4,14 @@ metadata:
   name: smartbiz-ui
   namespace: smartbiz
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: default-redirect-https@kubernetescrd
 spec:
   ingressClassName: traefik
+  tls:
+  - hosts:
+    - smartbiz.local
+    secretName: smartbiz-tls-secret
   rules:
   - host: smartbiz.local
     http:

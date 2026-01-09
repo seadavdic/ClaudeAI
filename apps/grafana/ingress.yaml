@@ -4,8 +4,13 @@ metadata:
   name: grafana
   namespace: grafana
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: default-redirect-https@kubernetescrd
 spec:
+  tls:
+  - hosts:
+    - grafana.local
+    secretName: grafana-tls-secret
   rules:
   - host: grafana.local
     http:

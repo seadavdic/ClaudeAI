@@ -1,0 +1,114 @@
+---
+# Grafana TLS Certificate
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: grafana-tls
+  namespace: grafana
+spec:
+  secretName: grafana-tls-secret
+  duration: 2160h  # 90 days
+  renewBefore: 360h  # 15 days before expiry
+  subject:
+    organizations:
+      - RaspberryPi-Cluster
+  commonName: grafana.local
+  dnsNames:
+    - grafana.local
+    - grafana.grafana.svc.cluster.local
+  issuerRef:
+    name: ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+
+---
+# Prometheus TLS Certificate
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: prometheus-tls
+  namespace: prometheus
+spec:
+  secretName: prometheus-tls-secret
+  duration: 2160h  # 90 days
+  renewBefore: 360h  # 15 days before expiry
+  subject:
+    organizations:
+      - RaspberryPi-Cluster
+  commonName: prometheus.local
+  dnsNames:
+    - prometheus.local
+    - prometheus-prometheus-server.prometheus.svc.cluster.local
+  issuerRef:
+    name: ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+
+---
+# SmartBiz TLS Certificate
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: smartbiz-tls
+  namespace: smartbiz
+spec:
+  secretName: smartbiz-tls-secret
+  duration: 2160h  # 90 days
+  renewBefore: 360h  # 15 days before expiry
+  subject:
+    organizations:
+      - RaspberryPi-Cluster
+  commonName: smartbiz.local
+  dnsNames:
+    - smartbiz.local
+    - smartbiz-ui.smartbiz.svc.cluster.local
+  issuerRef:
+    name: ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+
+---
+# RabbitMQ TLS Certificate
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: rabbitmq-tls
+  namespace: rabbitmq
+spec:
+  secretName: rabbitmq-tls-secret
+  duration: 2160h  # 90 days
+  renewBefore: 360h  # 15 days before expiry
+  subject:
+    organizations:
+      - RaspberryPi-Cluster
+  commonName: rabbitmq.local
+  dnsNames:
+    - rabbitmq.local
+    - rabbitmq.rabbitmq.svc.cluster.local
+  issuerRef:
+    name: ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+
+---
+# Alertmanager TLS Certificate
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: alertmanager-tls
+  namespace: prometheus
+spec:
+  secretName: alertmanager-tls-secret
+  duration: 2160h  # 90 days
+  renewBefore: 360h  # 15 days before expiry
+  subject:
+    organizations:
+      - RaspberryPi-Cluster
+  commonName: alertmanager.local
+  dnsNames:
+    - alertmanager.local
+    - prometheus-prometheus-alertmanager.prometheus.svc.cluster.local
+  issuerRef:
+    name: ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io

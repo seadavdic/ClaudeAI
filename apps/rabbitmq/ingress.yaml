@@ -3,7 +3,14 @@ kind: Ingress
 metadata:
   name: rabbitmq-management
   namespace: rabbitmq
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: default-redirect-https@kubernetescrd
 spec:
+  tls:
+  - hosts:
+    - rabbitmq.local
+    secretName: rabbitmq-tls-secret
   rules:
   - host: rabbitmq.local
     http:
