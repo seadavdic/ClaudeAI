@@ -19,6 +19,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: grafana-grafana
+            name: oauth2-proxy-grafana
             port:
-              number: 80
+              number: 4180
+            namespace: oauth2-proxy
