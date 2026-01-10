@@ -1,0 +1,14 @@
+---
+# ExternalName service to reference OAuth2 Proxy in oauth2-proxy namespace
+apiVersion: v1
+kind: Service
+metadata:
+  name: oauth2-proxy-grafana
+  namespace: grafana
+spec:
+  type: ExternalName
+  externalName: oauth2-proxy-grafana.oauth2-proxy.svc.cluster.local
+  ports:
+  - port: 4180
+    targetPort: 4180
+    protocol: TCP

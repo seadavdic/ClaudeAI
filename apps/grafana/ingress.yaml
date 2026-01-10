@@ -22,4 +22,3 @@ spec:
             name: oauth2-proxy-grafana
             port:
               number: 4180
-            namespace: oauth2-proxy
