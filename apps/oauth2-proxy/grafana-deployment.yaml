@@ -24,8 +24,8 @@ spec:
           - --http-address=0.0.0.0:4180
           - --redirect-url=https://grafana.local:32742/oauth2/callback
           - --cookie-secure=true
-          - --cookie-domain=.local
-          - --whitelist-domain=.local
+          - --cookie-samesite=lax
+          - --reverse-proxy=true
           - --pass-access-token=true
           - --pass-user-headers=true
           - --set-xauthrequest=true
