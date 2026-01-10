@@ -718,11 +718,13 @@ yourname/ClaudeAI/
   │                  (auto-redirects to HTTPS)               │
   │  External: https://[tunnel].trycloudflare.com            │
   │                                                          │
-  │  🔐 Login:                                               │
-  │    Username: admin                                       │
-  │    Password: <your-grafana-password>                     │
+  │  🔐 Authentication:                                      │
+  │    Local: GitHub OAuth (login with GitHub account)      │
+  │    External: No authentication (direct Grafana access)  │
   │                                                          │
-  │  🔒 Security: TLS via cert-manager                       │
+  │  🔒 Security:                                            │
+  │    ├─ TLS via cert-manager                              │
+  │    └─ OAuth2 Proxy (GitHub authentication)              │
   │                                                          │
   │  Features:                                               │
   │  ├─ Web Server Metrics dashboard                         │
@@ -983,7 +985,7 @@ yourname/ClaudeAI/
   ├─ ✅ Sealed Secrets (IMPLEMENTED - encrypted credentials in Git)
   ├─ ✅ cert-manager (IMPLEMENTED - automatic SSL/TLS certificates)
   ├─ ✅ HTTPS Everywhere (IMPLEMENTED - TLS termination + auto HTTP→HTTPS redirect)
-  ├─ OAuth2 Proxy (authentication layer)
+  ├─ ✅ OAuth2 Proxy (IMPLEMENTED - GitHub authentication for services)
   └─ Network Policies (pod-level firewall)
 
   🚀 CI/CD Pipeline
@@ -1068,6 +1070,103 @@ yourname/ClaudeAI/
   ✓ Full audit trail in Git history
 
   📚 Documentation: docs/SEALED-SECRETS.md
+```
+
+---
+
+## 🔐 OAuth2 Authentication - GitHub Integration
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                   OAUTH2 AUTHENTICATION LAYER                           │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  🔒 Provider: GitHub OAuth
+  🛡️  Controller: OAuth2 Proxy v7.5.1 (per service)
+  ✅ Status: Active - Grafana protected with GitHub authentication
+
+  📦 Protected Services:
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │  Grafana (grafana namespace)                                │
+  │  ├─ OAuth2 Proxy: oauth2-proxy-grafana:4180                 │
+  │  ├─ Upstream: grafana-grafana:80                            │
+  │  ├─ Access: https://grafana.local:32742                     │
+  │  └─ Auth: GitHub account required                           │
+  └─────────────────────────────────────────────────────────────┘
+
+  🔄 Authentication Flow:
+
+  User Access                GitHub OAuth              OAuth2 Proxy
+  ──────────                ─────────────              ────────────
+
+  1. Visit URL      →       2. No session?     →      3. Redirect to
+     grafana.local             Check cookie             GitHub
+
+                    ←       4. GitHub login    ←      User authenticates
+                                                       with GitHub
+
+  5. Callback URL   →       6. Exchange code   →      7. Create session
+     with auth code            for access token          Set cookie
+
+  8. Redirect back  →       9. Session valid   →      10. Forward to
+     to Grafana                Headers set               Grafana
+
+  ✅ Authenticated access to Grafana
+
+  🔑 Session Management:
+  ├─ Duration: 168 hours (7 days) default
+  ├─ Cookie: _oauth2_proxy (encrypted)
+  ├─ Security: HTTPS-only, SameSite=lax
+  └─ Renewal: Automatic token refresh
+
+  🛠️  Configuration:
+  ┌─────────────────────────────────────────────────────────────┐
+  │  OAuth2 Proxy Arguments:                                    │
+  │  ├─ --provider=github                                       │
+  │  ├─ --email-domain=* (allow all GitHub users)              │
+  │  ├─ --upstream=http://grafana-grafana.grafana.svc:80       │
+  │  ├─ --redirect-url=https://grafana.local:32742/oauth2/callback│
+  │  ├─ --cookie-secure=true (HTTPS only)                      │
+  │  ├─ --cookie-samesite=lax (OAuth flow compatible)          │
+  │  ├─ --reverse-proxy=true (trust Traefik headers)           │
+  │  ├─ --pass-access-token=true                               │
+  │  └─ --pass-user-headers=true                               │
+  └─────────────────────────────────────────────────────────────┘
+
+  🔐 Secrets Management:
+  ┌─────────────────────────────────────────────────────────────┐
+  │  Sealed Secret: oauth2-proxy-secrets (grafana namespace)   │
+  │  ├─ client-id: GitHub OAuth App Client ID                  │
+  │  ├─ client-secret: GitHub OAuth App Client Secret          │
+  │  └─ cookie-secret: 32-byte base64 (session encryption)     │
+  └─────────────────────────────────────────────────────────────┘
+
+  🌐 Traffic Flow Comparison:
+
+  With OAuth2 (Local HTTPS):
+  Browser → Traefik:32742 → oauth2-proxy-grafana:4180 → grafana-grafana:80
+           (TLS)           (Session check)              (Protected)
+
+  Without OAuth2 (Cloudflare):
+  Browser → Cloudflare → cloudflared pod → grafana-grafana:80
+           (HTTPS)                        (Direct, no auth)
+
+  🎯 Benefits:
+  ✓ Centralized authentication (no per-service config)
+  ✓ GitHub organization/team membership filtering
+  ✓ Single Sign-On across all services
+  ✓ Encrypted session cookies
+  ✓ CSRF protection built-in
+  ✓ TLS-secured authentication flow
+
+  🚀 Expandable Architecture:
+  ├─ Add OAuth2 Proxy per service (Prometheus, RabbitMQ, etc.)
+  ├─ Use same GitHub OAuth App (multiple callbacks)
+  ├─ Independent access control per service
+  └─ Consistent auth experience
+
+  📚 Documentation: docs/OAUTH2-GITHUB.md
 ```
 
 ---
@@ -1658,10 +1757,10 @@ yourname/ClaudeAI/
 ---
 
 **Created:** 2026-01-04
-**Last Updated:** 2026-01-09
+**Last Updated:** 2026-01-10
 **Cluster:** 2x Raspberry Pi (ARMv7)
 **GitOps:** Flux CD (v1.7.3)
 **Monitoring:** Prometheus + Grafana (6 dashboards) + Loki + Custom Apps
-**Security:** Sealed Secrets (RSA-4096) + cert-manager (SSL/TLS) + HTTPS Everywhere
+**Security:** Sealed Secrets (RSA-4096) + cert-manager (SSL/TLS) + HTTPS Everywhere + OAuth2 (GitHub)
 **Applications:** SmartBiz (PostgreSQL + FastAPI + SPA) + RabbitMQ Order Pipeline
 **Public Access:** Cloudflare Tunnel
