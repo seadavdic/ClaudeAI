@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: oauth2-proxy-grafana
-  namespace: oauth2-proxy
+  namespace: grafana
 spec:
   replicas: 1
   selector:
