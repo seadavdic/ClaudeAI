@@ -19,5 +19,5 @@ spec:
         args:
         - tunnel
         - --url
-        - http://grafana-grafana.grafana.svc.cluster.local:80
+        - http://oauth2-proxy-grafana.grafana.svc.cluster.local:4180
         - --no-autoupdate
