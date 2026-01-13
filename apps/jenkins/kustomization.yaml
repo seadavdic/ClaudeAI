@@ -9,5 +9,5 @@ resources:
   - deployment.yaml
   - service.yaml
   - ingress.yaml
-  - prometheus-servicemonitor.yaml
+  # - prometheus-servicemonitor.yaml  # Disabled: Prometheus Operator not installed
   - grafana-dashboard.yaml
