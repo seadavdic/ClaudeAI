@@ -1,0 +1,40 @@
+---
+# Task: Clone Git Repository
+# This task clones a git repository to a workspace
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: git-clone
+  namespace: tekton-pipelines
+  labels:
+    app.kubernetes.io/name: git-clone
+spec:
+  description: Clone a git repository
+  workspaces:
+    - name: output
+      description: The git repository will be cloned here
+  params:
+    - name: url
+      description: Git repository URL
+      type: string
+    - name: revision
+      description: Git revision to checkout (branch, tag, sha)
+      type: string
+      default: main
+  steps:
+    - name: clone
+      image: gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/git-init:v0.40.2
+      script: |
+        #!/bin/sh
+        set -e
+
+        echo "Cloning $(params.url) at revision $(params.revision)"
+
+        /ko-app/git-init \
+          -url "$(params.url)" \
+          -revision "$(params.revision)" \
+          -path "$(workspaces.output.path)"
+
+        cd "$(workspaces.output.path)"
+        echo "Repository cloned successfully"
+        ls -la

@@ -1,0 +1,80 @@
+---
+# Task: Deploy to Kubernetes
+# This task updates a Kubernetes deployment with a new image
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: deploy-to-kubernetes
+  namespace: tekton-pipelines
+  labels:
+    app.kubernetes.io/name: deploy-to-kubernetes
+spec:
+  description: Deploy a new image to Kubernetes by updating deployment
+  params:
+    - name: deployment-name
+      description: Name of the deployment to update
+      type: string
+    - name: namespace
+      description: Namespace of the deployment
+      type: string
+      default: default
+    - name: image
+      description: New container image
+      type: string
+    - name: container-name
+      description: Name of the container to update
+      type: string
+      default: app
+  steps:
+    - name: update-deployment
+      image: bitnami/kubectl:1.28
+      script: |
+        #!/bin/bash
+        set -e
+
+        echo "Updating deployment $(params.deployment-name) in namespace $(params.namespace)"
+        echo "New image: $(params.image)"
+
+        # Update the deployment image
+        kubectl set image deployment/$(params.deployment-name) \
+          $(params.container-name)=$(params.image) \
+          -n $(params.namespace)
+
+        # Wait for rollout to complete
+        kubectl rollout status deployment/$(params.deployment-name) \
+          -n $(params.namespace) \
+          --timeout=5m
+
+        echo "✅ Deployment updated successfully!"
+
+        # Show deployment status
+        kubectl get deployment $(params.deployment-name) -n $(params.namespace)
+
+    - name: verify-deployment
+      image: bitnami/kubectl:1.28
+      script: |
+        #!/bin/bash
+        set -e
+
+        echo "Verifying deployment health..."
+
+        # Get pod status
+        kubectl get pods -n $(params.namespace) \
+          -l app=$(params.deployment-name) \
+          -o wide
+
+        # Check if all pods are running
+        READY_REPLICAS=$(kubectl get deployment $(params.deployment-name) \
+          -n $(params.namespace) \
+          -o jsonpath='{.status.readyReplicas}')
+
+        DESIRED_REPLICAS=$(kubectl get deployment $(params.deployment-name) \
+          -n $(params.namespace) \
+          -o jsonpath='{.spec.replicas}')
+
+        if [ "$READY_REPLICAS" = "$DESIRED_REPLICAS" ]; then
+          echo "✅ All $READY_REPLICAS/$DESIRED_REPLICAS replicas are ready"
+        else
+          echo "❌ Only $READY_REPLICAS/$DESIRED_REPLICAS replicas are ready"
+          exit 1
+        fi

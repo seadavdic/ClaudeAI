@@ -1,0 +1,78 @@
+---
+# PipelineRun: Example execution of SmartBiz CI/CD pipeline
+# This is a manual trigger example - you can create this to run the pipeline
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: smartbiz-cicd-run-001
+  namespace: tekton-pipelines
+  labels:
+    app.kubernetes.io/name: smartbiz-cicd
+    tekton.dev/pipeline: smartbiz-cicd
+spec:
+  pipelineRef:
+    name: smartbiz-cicd
+  workspaces:
+    - name: shared-workspace
+      persistentVolumeClaim:
+        claimName: tekton-workspace-pvc
+    # Note: docker-credentials workspace is optional
+    # If you want to push to Docker Hub, create a secret and uncomment:
+    # - name: docker-credentials
+    #   secret:
+    #     secretName: docker-credentials
+  params:
+    - name: git-url
+      value: https://github.com/seadavdic/ClaudeAI.git
+    - name: git-revision
+      value: main
+    - name: image-name
+      value: docker.io/seadavdic/smartbiz-api
+    - name: image-tag
+      value: v1.0.0
+    - name: deployment-name
+      value: smartbiz-api
+    - name: deployment-namespace
+      value: smartbiz
+  # Automatically clean up after 1 hour
+  timeouts:
+    pipeline: "1h"
+    tasks: "30m"
+---
+# ServiceAccount for Pipeline execution
+# This gives the pipeline permissions to deploy to cluster
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tekton-pipeline-sa
+  namespace: tekton-pipelines
+---
+# ClusterRole for deploying to any namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tekton-deployer
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get", "list"]
+---
+# ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tekton-pipeline-deployer
+subjects:
+  - kind: ServiceAccount
+    name: tekton-pipeline-sa
+    namespace: tekton-pipelines
+roleRef:
+  kind: ClusterRole
+  name: tekton-deployer
+  apiGroup: rbac.authorization.k8s.io

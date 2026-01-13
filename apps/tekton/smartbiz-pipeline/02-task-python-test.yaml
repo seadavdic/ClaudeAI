@@ -1,0 +1,75 @@
+---
+# Task: Run Python Tests
+# This task runs pytest on Python code
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: python-test
+  namespace: tekton-pipelines
+  labels:
+    app.kubernetes.io/name: python-test
+spec:
+  description: Run Python tests with pytest
+  workspaces:
+    - name: source
+      description: Workspace containing the source code
+  params:
+    - name: python-version
+      description: Python version to use
+      type: string
+      default: "3.11"
+    - name: requirements-file
+      description: Path to requirements.txt
+      type: string
+      default: "requirements.txt"
+    - name: test-path
+      description: Path to tests
+      type: string
+      default: "tests/"
+  results:
+    - name: test-result
+      description: Test execution result (passed/failed)
+  steps:
+    - name: install-dependencies
+      image: python:$(params.python-version)-slim
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/bash
+        set -e
+
+        echo "Installing dependencies from $(params.requirements-file)"
+
+        if [ -f "$(params.requirements-file)" ]; then
+          pip install -r $(params.requirements-file)
+        else
+          echo "No requirements.txt found, skipping dependency installation"
+        fi
+
+        # Install pytest if not in requirements
+        pip install pytest pytest-cov
+
+    - name: run-tests
+      image: python:$(params.python-version)-slim
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/bash
+        set -e
+
+        echo "Running tests from $(params.test-path)"
+
+        if [ -d "$(params.test-path)" ] || [ -f "$(params.test-path)" ]; then
+          pytest $(params.test-path) -v --tb=short --cov --cov-report=term-missing
+          TEST_EXIT_CODE=$?
+
+          if [ $TEST_EXIT_CODE -eq 0 ]; then
+            echo "✅ All tests passed!"
+            echo -n "passed" > $(results.test-result.path)
+          else
+            echo "❌ Tests failed!"
+            echo -n "failed" > $(results.test-result.path)
+            exit 1
+          fi
+        else
+          echo "⚠️  No tests found at $(params.test-path), skipping"
+          echo -n "skipped" > $(results.test-result.path)
+        fi

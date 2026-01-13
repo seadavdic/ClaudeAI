@@ -1,0 +1,79 @@
+---
+# Task: Build Container Image
+# This task builds a Docker image using Kaniko (no Docker daemon required)
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: build-image
+  namespace: tekton-pipelines
+  labels:
+    app.kubernetes.io/name: build-image
+spec:
+  description: Build a container image using Kaniko
+  workspaces:
+    - name: source
+      description: Workspace containing Dockerfile and context
+    - name: dockerconfig
+      description: Docker config for registry authentication (optional)
+      optional: true
+  params:
+    - name: image
+      description: Image reference (e.g. docker.io/username/image:tag)
+      type: string
+    - name: dockerfile
+      description: Path to Dockerfile
+      type: string
+      default: "Dockerfile"
+    - name: context
+      description: Build context path
+      type: string
+      default: "."
+    - name: build-args
+      description: Build arguments (comma-separated KEY=VALUE pairs)
+      type: string
+      default: ""
+  results:
+    - name: image-digest
+      description: Digest of the built image
+    - name: image-url
+      description: URL of the built image
+  steps:
+    - name: build-and-push
+      image: gcr.io/kaniko-project/executor:v1.19.0
+      workingDir: $(workspaces.source.path)
+      env:
+        - name: DOCKER_CONFIG
+          value: $(workspaces.dockerconfig.path)
+      script: |
+        #!/busybox/sh
+        set -e
+
+        echo "Building image: $(params.image)"
+        echo "Dockerfile: $(params.dockerfile)"
+        echo "Context: $(params.context)"
+
+        # Build arguments
+        BUILD_ARGS=""
+        if [ -n "$(params.build-args)" ]; then
+          IFS=',' read -ra ARGS <<< "$(params.build-args)"
+          for arg in "${ARGS[@]}"; do
+            BUILD_ARGS="$BUILD_ARGS --build-arg $arg"
+          done
+        fi
+
+        # Build and push image
+        /kaniko/executor \
+          --dockerfile=$(params.dockerfile) \
+          --context=$(workspaces.source.path)/$(params.context) \
+          --destination=$(params.image) \
+          --digest-file=/tekton/results/image-digest \
+          --cache=true \
+          --cache-ttl=24h \
+          --compressed-caching=false \
+          $BUILD_ARGS
+
+        # Save image URL
+        echo -n "$(params.image)" > $(results.image-url.path)
+
+        echo "✅ Image built successfully: $(params.image)"
+        echo "📦 Digest: $(cat /tekton/results/image-digest)"
