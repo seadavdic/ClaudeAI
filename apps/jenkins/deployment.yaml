@@ -24,7 +24,7 @@ spec:
         runAsUser: 1000
       containers:
       - name: jenkins
-        image: wouterds/rpi-jenkins:latest  # Community ARM32 image for Raspberry Pi
+        image: mlucken/jenkins-arm:latest  # Alternative community ARM32 image for Raspberry Pi
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
