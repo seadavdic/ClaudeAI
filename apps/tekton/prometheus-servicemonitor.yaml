@@ -1,0 +1,39 @@
+---
+# ServiceMonitor for Tekton Pipelines Controller
+# Allows Prometheus to scrape Tekton metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: tekton-pipelines-controller
+  namespace: tekton-pipelines
+  labels:
+    app: tekton-pipelines-controller
+spec:
+  selector:
+    matchLabels:
+      app: tekton-pipelines-controller
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics
+---
+# Service for Tekton Pipelines Controller metrics
+# (if not already created by Tekton installation)
+apiVersion: v1
+kind: Service
+metadata:
+  name: tekton-pipelines-controller-metrics
+  namespace: tekton-pipelines
+  labels:
+    app: tekton-pipelines-controller
+spec:
+  selector:
+    app.kubernetes.io/name: controller
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/part-of: tekton-pipelines
+  ports:
+    - name: metrics
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+  type: ClusterIP

@@ -5,6 +5,8 @@ resources:
   - namespace.yaml
   - install.yaml
   - dashboard-ingress.yaml
+  - prometheus-servicemonitor.yaml
+  - grafana-dashboard.yaml
   - smartbiz-pipeline/01-task-git-clone.yaml
   - smartbiz-pipeline/02-task-python-test.yaml
   - smartbiz-pipeline/03-task-build-image.yaml
