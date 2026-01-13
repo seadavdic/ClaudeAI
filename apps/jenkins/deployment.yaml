@@ -24,7 +24,7 @@ spec:
         runAsUser: 1000
       containers:
       - name: jenkins
-        image: jenkins/jenkins:2.479-jdk17  # LTS version with ARM32 support
+        image: wouterds/rpi-jenkins:latest  # Community ARM32 image for Raspberry Pi
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
@@ -39,9 +39,8 @@ spec:
           value: >-
             -Xmx512m
             -Xms256m
-            -Djenkins.install.runSetupWizard=false
             -Dorg.apache.commons.jelly.tags.fmt.timeZone=Europe/Berlin
-        # Disable setup wizard (we'll configure via UI)
+        # Session timeout
         - name: JENKINS_OPTS
           value: --sessionTimeout=1440
         resources:
