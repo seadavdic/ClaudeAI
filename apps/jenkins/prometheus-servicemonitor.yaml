@@ -1,0 +1,19 @@
+---
+# ServiceMonitor for Jenkins metrics
+# Note: Requires Prometheus Metrics Plugin to be installed in Jenkins
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: jenkins
+  namespace: jenkins
+  labels:
+    app: jenkins
+spec:
+  selector:
+    matchLabels:
+      app: jenkins
+  endpoints:
+    - port: http
+      interval: 30s
+      path: /prometheus/
+      scheme: http

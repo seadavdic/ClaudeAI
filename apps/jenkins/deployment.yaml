@@ -1,0 +1,76 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins
+  namespace: jenkins
+  labels:
+    app: jenkins
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # Jenkins uses persistent storage, can't have multiple replicas
+  selector:
+    matchLabels:
+      app: jenkins
+  template:
+    metadata:
+      labels:
+        app: jenkins
+    spec:
+      serviceAccountName: jenkins
+      securityContext:
+        fsGroup: 1000  # Jenkins user/group
+        runAsUser: 1000
+      containers:
+      - name: jenkins
+        image: jenkins/jenkins:2.479-jdk17  # LTS version with ARM32 support
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        - name: jnlp
+          containerPort: 50000
+          protocol: TCP
+        env:
+        # Java options for Raspberry Pi (limited memory)
+        - name: JAVA_OPTS
+          value: >-
+            -Xmx512m
+            -Xms256m
+            -Djenkins.install.runSetupWizard=false
+            -Dorg.apache.commons.jelly.tags.fmt.timeZone=Europe/Berlin
+        # Disable setup wizard (we'll configure via UI)
+        - name: JENKINS_OPTS
+          value: --sessionTimeout=1440
+        resources:
+          requests:
+            memory: "768Mi"
+            cpu: "250m"
+          limits:
+            memory: "1536Mi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: jenkins-home
+          mountPath: /var/jenkins_home
+        livenessProbe:
+          httpGet:
+            path: /login
+            port: 8080
+          initialDelaySeconds: 90
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 5
+        readinessProbe:
+          httpGet:
+            path: /login
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: jenkins-home
+        persistentVolumeClaim:
+          claimName: jenkins-pvc
