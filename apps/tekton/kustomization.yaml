@@ -3,14 +3,15 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
-  - install.yaml
-  - dashboard-ingress.yaml
-  - prometheus-servicemonitor.yaml
-  - grafana-dashboard.yaml
-  - smartbiz-pipeline/01-task-git-clone.yaml
-  - smartbiz-pipeline/02-task-python-test.yaml
-  - smartbiz-pipeline/03-task-build-image.yaml
-  - smartbiz-pipeline/04-task-deploy-k8s.yaml
-  - smartbiz-pipeline/05-pipeline-smartbiz.yaml
-  - smartbiz-pipeline/06-workspace-pvc.yaml
-  - smartbiz-pipeline/07-pipelinerun-example.yaml
+  # Tekton installation disabled - ARM32 not supported
+  # - install.yaml
+  # - dashboard-ingress.yaml
+  # - prometheus-servicemonitor.yaml
+  # - grafana-dashboard.yaml
+  # - smartbiz-pipeline/01-task-git-clone.yaml
+  # - smartbiz-pipeline/02-task-python-test.yaml
+  # - smartbiz-pipeline/03-task-build-image.yaml
+  # - smartbiz-pipeline/04-task-deploy-k8s.yaml
+  # - smartbiz-pipeline/05-pipeline-smartbiz.yaml
+  # - smartbiz-pipeline/06-workspace-pvc.yaml
+  # - smartbiz-pipeline/07-pipelinerun-example.yaml
