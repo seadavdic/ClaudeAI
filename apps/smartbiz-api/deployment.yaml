@@ -19,42 +19,45 @@ spec:
         command: ['sh', '-c', 'until nc -z postgres.smartbiz.svc.cluster.local 5432; do echo waiting for postgres; sleep 2; done']
       containers:
       - name: api
-        image: python:3.11-slim
-        command:
-          - sh
-          - -c
-          - |
-            apt-get update && apt-get install -y gcc postgresql-client libpq-dev && \
-            pip install -r /app/requirements.txt && python /app/main.py
+        image: ghcr.io/seadavdic/smartbiz-api:1.0.0  # {"$imagepolicy": "flux-system:smartbiz-api"}
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
           name: http
-        envFrom:
-        - secretRef:
-            name: postgres-secret
-        volumeMounts:
-        - name: code
-          mountPath: /app
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_DB
+        - name: DB_HOST
+          value: "postgres.smartbiz.svc.cluster.local"
         resources:
           requests:
-            memory: "256Mi"
-            cpu: "100m"
+            memory: "128Mi"
+            cpu: "50m"
           limits:
-            memory: "512Mi"
-            cpu: "500m"
+            memory: "256Mi"
+            cpu: "250m"
         livenessProbe:
           httpGet:
             path: /health
             port: 8000
-          initialDelaySeconds: 300
+          initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /health
             port: 8000
-          initialDelaySeconds: 200
+          initialDelaySeconds: 10
           periodSeconds: 5
-      volumes:
-      - name: code
-        configMap:
-          name: smartbiz-api-code

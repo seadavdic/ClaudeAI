@@ -1,0 +1,56 @@
+---
+# ImageRepository - Tells Flux where to scan for new images
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: smartbiz-api
+  namespace: flux-system
+spec:
+  image: ghcr.io/seadavdic/smartbiz-api
+  interval: 1m
+  # GitHub Container Registry is public for public repos
+  # For private repos, you'd need to add secretRef
+
+---
+# ImagePolicy - Defines which image tags to use
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: smartbiz-api
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: smartbiz-api
+  policy:
+    semver:
+      range: ">=1.0.0"
+
+---
+# ImageUpdateAutomation - Automatically updates deployment files
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageUpdateAutomation
+metadata:
+  name: smartbiz-api
+  namespace: flux-system
+spec:
+  interval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  git:
+    checkout:
+      ref:
+        branch: main
+    commit:
+      author:
+        name: Flux Image Automation
+        email: flux@raspberrypi-cluster.local
+      messageTemplate: |
+        Update SmartBiz API image to {{range .Changed.Changes}}{{.NewValue}}{{end}}
+
+        Automated image update by Flux
+    push:
+      branch: main
+  update:
+    path: ./apps/smartbiz-api
+    strategy: Setters
