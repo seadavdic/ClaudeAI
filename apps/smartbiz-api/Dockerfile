@@ -4,7 +4,13 @@ FROM python:3.11-slim as builder
 
 WORKDIR /app
 
-# Install dependencies
+# Install build dependencies for psycopg2
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
@@ -12,6 +18,11 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 FROM python:3.11-slim
 
 WORKDIR /app
+
+# Install runtime dependencies for psycopg2
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy dependencies from builder
 COPY --from=builder /root/.local /root/.local
