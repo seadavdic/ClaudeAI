@@ -5,13 +5,20 @@ on:
     branches:
       - main
     paths:
-      - 'apps/smartbiz-api/**'
+      # Only trigger on actual code changes, not deployment.yaml (updated by Flux)
+      - 'apps/smartbiz-api/main.py'
+      - 'apps/smartbiz-api/Dockerfile'
+      - 'apps/smartbiz-api/requirements.txt'
+      - 'apps/smartbiz-api/tests/**'
       - '.github/workflows/smartbiz-ci.yaml'
   pull_request:
     branches:
       - main
     paths:
-      - 'apps/smartbiz-api/**'
+      - 'apps/smartbiz-api/main.py'
+      - 'apps/smartbiz-api/Dockerfile'
+      - 'apps/smartbiz-api/requirements.txt'
+      - 'apps/smartbiz-api/tests/**'
 
 env:
   REGISTRY: ghcr.io
