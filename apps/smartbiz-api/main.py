@@ -82,7 +82,8 @@ class OrderCreate(BaseModel):
     quantity: int
 
 # FastAPI app
-app = FastAPI(title="SmartBiz API", version="1.0.0")
+API_VERSION = "2.0.0"
+app = FastAPI(title="SmartBiz API", version=API_VERSION)
 
 app.add_middleware(
     CORSMiddleware,
@@ -96,6 +97,11 @@ app.add_middleware(
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "service": "smartbiz-api"}
+
+# Version endpoint
+@app.get("/api/version")
+def get_version():
+    return {"version": API_VERSION, "service": "smartbiz-api"}
 
 # Metrics endpoint
 @app.get("/metrics")
