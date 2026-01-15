@@ -19,7 +19,7 @@ spec:
         command: ['sh', '-c', 'until nc -z postgres.smartbiz.svc.cluster.local 5432; do echo waiting for postgres; sleep 2; done']
       containers:
       - name: api
-        image: ghcr.io/seadavdic/smartbiz-api:1.0.777 # {"$imagepolicy": "flux-system:smartbiz-api"}
+        image: ghcr.io/seadavdic/smartbiz-api:1.0.778 # {"$imagepolicy": "flux-system:smartbiz-api"}
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
