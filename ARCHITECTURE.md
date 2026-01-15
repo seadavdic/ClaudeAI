@@ -989,10 +989,12 @@ yourname/ClaudeAI/
   └─ Network Policies (pod-level firewall)
 
   🚀 CI/CD Pipeline
-  ├─ Tekton Pipelines (cloud-native CI/CD)
-  ├─ GitLab Runner (self-hosted CI)
-  ├─ Argo Workflows (workflow engine)
-  └─ Harbor (container registry)
+  ├─ ✅ GitHub Actions (IMPLEMENTED - multi-arch image builds)
+  ├─ ✅ Flux Image Automation (IMPLEMENTED - automatic deployments)
+  ├─ ✅ GitHub Container Registry (IMPLEMENTED - ghcr.io)
+  ├─ ❌ Tekton Pipelines (NOT SUPPORTED - no ARM32 images)
+  ├─ ❌ Jenkins (NOT SUPPORTED - no ARM32 images)
+  └─ Harbor (container registry - optional)
 
   ⚡ Serverless & Functions
   ├─ OpenFaaS (functions as a service)
@@ -1167,6 +1169,111 @@ yourname/ClaudeAI/
   └─ Consistent auth experience
 
   📚 Documentation: docs/OAUTH2-GITHUB.md
+```
+
+---
+
+## 🚀 CI/CD Pipeline - GitHub Actions + Flux Image Automation
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    AUTOMATED BUILD & DEPLOY PIPELINE                    │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  🔨 Build: GitHub Actions (Multi-architecture Docker builds)
+  📦 Registry: GitHub Container Registry (ghcr.io)
+  🔄 Deploy: Flux Image Automation (Automatic deployments)
+  ✅ Status: Active - SmartBiz API fully automated
+
+  📊 Pipeline Flow:
+
+  Developer              GitHub                     Kubernetes Cluster
+  ─────────              ──────                     ──────────────────
+
+  1. git push     →      2. Actions triggered  →   5. Flux Image Reflector
+     main.py                 Multi-arch build          detects new tag
+     Dockerfile
+                         3. Push to ghcr.io    →   6. Image Policy selects
+                            ARM32 + ARM64 +            highest semver
+                            AMD64
+
+                         4. Version: 1.0.X     →   7. Image Automation
+                            (commit count)            updates deployment.yaml
+
+                                               →   8. Kustomize Controller
+                                                      deploys to cluster
+
+  ⚙️  GitHub Actions Workflow:
+  ┌────────────────────────────────────────────────────────────────┐
+  │  File: .github/workflows/smartbiz-ci.yaml                      │
+  │                                                                │
+  │  Trigger:                                                      │
+  │  ├─ Push to main branch                                       │
+  │  └─ Only specific files (prevents feedback loops):            │
+  │      ├─ apps/smartbiz-api/main.py                             │
+  │      ├─ apps/smartbiz-api/Dockerfile                          │
+  │      ├─ apps/smartbiz-api/requirements.txt                    │
+  │      └─ apps/smartbiz-api/tests/**                            │
+  │                                                                │
+  │  Build Steps:                                                  │
+  │  ├─ 1. Checkout repository                                    │
+  │  ├─ 2. Calculate version (1.0.{commit_count})                 │
+  │  ├─ 3. Set up QEMU for multi-arch                             │
+  │  ├─ 4. Set up Docker Buildx                                   │
+  │  ├─ 5. Login to ghcr.io                                       │
+  │  ├─ 6. Build & push multi-arch image                          │
+  │  └─ 7. Generate build summary                                 │
+  │                                                                │
+  │  Platforms: linux/arm/v7, linux/arm64, linux/amd64            │
+  └────────────────────────────────────────────────────────────────┘
+
+  🔄 Flux Image Automation:
+  ┌────────────────────────────────────────────────────────────────┐
+  │  File: clusters/my-cluster/flux-system/image-automation.yaml  │
+  │                                                                │
+  │  ImageRepository:                                              │
+  │  ├─ Scans: ghcr.io/seadavdic/smartbiz-api                     │
+  │  └─ Interval: 1 minute                                        │
+  │                                                                │
+  │  ImagePolicy:                                                  │
+  │  ├─ Policy: semver >= 1.0.0                                   │
+  │  └─ Selects: highest version tag                              │
+  │                                                                │
+  │  ImageUpdateAutomation:                                        │
+  │  ├─ Path: ./apps/smartbiz-api                                 │
+  │  ├─ Strategy: Setters (uses $imagepolicy markers)             │
+  │  ├─ Author: Flux Image Automation                             │
+  │  └─ Push: main branch                                         │
+  └────────────────────────────────────────────────────────────────┘
+
+  📝 Deployment Marker:
+  ┌────────────────────────────────────────────────────────────────┐
+  │  File: apps/smartbiz-api/deployment.yaml                       │
+  │                                                                │
+  │  image: ghcr.io/seadavdic/smartbiz-api:1.0.1330               │
+  │         # {"$imagepolicy": "flux-system:smartbiz-api"}        │
+  │                                                                │
+  │  The comment marker tells Flux which ImagePolicy controls     │
+  │  this image tag. Flux automatically updates the version.      │
+  └────────────────────────────────────────────────────────────────┘
+
+  ⏱️  Total Pipeline Time: ~3-5 minutes
+  ├─ Build (GitHub Actions): ~2-3 minutes
+  ├─ Detection (Flux): ~1 minute
+  └─ Deploy (Kubernetes): ~1 minute
+
+  ❌ NOT SUPPORTED on ARM32:
+  ├─ Tekton Pipelines (images don't support ARM32)
+  ├─ Jenkins (official images don't support ARM32)
+  └─ Reason: Running CI/CD pods on cluster requires ARM32 images
+
+  ✅ Solution: Use GitHub Actions
+  ├─ Builds run on GitHub infrastructure (not on cluster)
+  ├─ Native multi-architecture support via QEMU + Buildx
+  ├─ Free for public repositories
+  └─ Integrates with GitHub Container Registry
+
+  📚 Documentation: docs/CICD-PIPELINE.md
 ```
 
 ---

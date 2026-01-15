@@ -55,9 +55,10 @@ SmartBiz is a complete business management application running on Kubernetes wit
 
 ### 2. Backend API (FastAPI + Python 3.11)
 - **Namespace:** `smartbiz`
-- **Image:** `python:3.11-slim`
+- **Image:** `ghcr.io/seadavdic/smartbiz-api:1.0.x` (auto-built via CI/CD)
 - **Port:** 8000
 - **Database ORM:** SQLAlchemy
+- **CI/CD:** GitHub Actions + Flux Image Automation (see [CICD-PIPELINE.md](CICD-PIPELINE.md))
 - **Features:**
   - Full CRUD operations for articles, customers, orders
   - Stock management (PATCH endpoint)
@@ -69,24 +70,21 @@ SmartBiz is a complete business management application running on Kubernetes wit
 **Key Endpoints:**
 ```
 GET    /health                      - Health check
-GET    /stats                       - Database statistics
+GET    /api/version                 - API version info
+GET    /api/stats                   - Database statistics (dashboard)
 GET    /metrics                     - Prometheus metrics
 
-GET    /articles                    - List all articles
-POST   /articles                    - Create article
-GET    /articles/{id}               - Get article by ID
-PATCH  /articles/{id}/stock         - Update stock (+/- any amount)
+GET    /api/articles                - List all articles
+POST   /api/articles                - Create article
+GET    /api/articles/{id}           - Get article by ID
 
-GET    /customers                   - List all customers
-POST   /customers                   - Create customer
-GET    /customers/{id}              - Get customer by ID
+GET    /api/customers               - List all customers
+POST   /api/customers               - Create customer
+GET    /api/customers/{id}          - Get customer by ID
 
-GET    /orders                      - List all orders
-POST   /orders                      - Create order (auto-reduces stock)
-GET    /orders/{id}                 - Get order by ID
-
-POST   /ai/suggest-category         - Helper: Suggest article category
-POST   /ai/validate-email           - Helper: Validate email format
+GET    /api/orders                  - List all orders
+POST   /api/orders                  - Create order (auto-reduces stock)
+GET    /api/orders/{id}             - Get order by ID
 ```
 
 **Prometheus Metrics:**
@@ -158,8 +156,12 @@ apps/smartbiz-db/
 └── kustomization.yaml     - Kustomize config
 
 apps/smartbiz-api/
-├── configmap.yaml         - Complete FastAPI application code
+├── main.py                - FastAPI application code
+├── Dockerfile             - Multi-arch Docker build (ARM32/ARM64/AMD64)
+├── requirements.txt       - Python dependencies
 ├── deployment.yaml        - API deployment with init container
+│                            Image: ghcr.io/seadavdic/smartbiz-api:1.0.x
+│                            (auto-updated by Flux Image Automation)
 ├── service.yaml           - Internal service (port 8000)
 └── kustomization.yaml     - Kustomize config
 
@@ -373,10 +375,39 @@ kubectl exec -i -n smartbiz deployment/postgres -- \
   psql -U smartbiz smartbiz < smartbiz_backup.sql
 ```
 
+## CI/CD Pipeline
+
+SmartBiz API uses an automated CI/CD pipeline:
+
+### How It Works
+
+1. **Developer commits code** to `apps/smartbiz-api/main.py` or related files
+2. **GitHub Actions** automatically triggers:
+   - Builds multi-architecture Docker image (ARM32, ARM64, AMD64)
+   - Pushes to GitHub Container Registry (ghcr.io)
+   - Version: `1.0.{commit_count}` (e.g., 1.0.1330)
+3. **Flux Image Reflector** detects new image tag
+4. **Flux Image Automation** updates `deployment.yaml` with new tag
+5. **Flux Kustomize Controller** deploys new image to cluster
+
+### Pipeline Files
+
+- `.github/workflows/smartbiz-ci.yaml` - GitHub Actions workflow
+- `clusters/my-cluster/flux-system/image-automation.yaml` - Flux resources
+- `apps/smartbiz-api/deployment.yaml` - Contains `$imagepolicy` marker
+
+### Total Pipeline Time
+
+~3-5 minutes from commit to running in cluster
+
+### More Information
+
+See [CICD-PIPELINE.md](CICD-PIPELINE.md) for complete documentation.
+
 ## Future Enhancements
 
 Potential improvements:
-1. User authentication (JWT/OAuth)
+1. ~~User authentication (JWT/OAuth)~~ (Consider using OAuth2 Proxy)
 2. Multi-tenancy support
 3. Advanced reporting (PDF exports)
 4. Email notifications for low stock

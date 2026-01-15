@@ -10,7 +10,8 @@ All project documentation is located in the **[docs/](docs/)** folder:
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Detailed architecture diagrams and technical design
 - **[INSTALLATION-GUIDE.md](docs/INSTALLATION-GUIDE.md)** - Step-by-step installation instructions
 - **[GRAFANA-DASHBOARDS.md](docs/GRAFANA-DASHBOARDS.md)** - Complete guide to all 6 dashboards
-- **[OAUTH2-GITHUB.md](docs/OAUTH2-GITHUB.md)** - GitHub OAuth authentication setup ⭐ NEW!
+- **[OAUTH2-GITHUB.md](docs/OAUTH2-GITHUB.md)** - GitHub OAuth authentication setup
+- **[CICD-PIPELINE.md](docs/CICD-PIPELINE.md)** - CI/CD with GitHub Actions + Flux Image Automation ⭐ NEW!
 - **[CERT-MANAGER.md](docs/CERT-MANAGER.md)** - Automatic SSL/TLS certificate management
 - **[SEALED-SECRETS.md](docs/SEALED-SECRETS.md)** - Secrets management guide
 - **[FLUX-DASHBOARD.md](docs/FLUX-DASHBOARD.md)** - GitOps monitoring dashboard guide
@@ -53,6 +54,13 @@ https://grafana.local:32742
 ✅ **HTTPS Everywhere** - All services secured with TLS termination
 ✅ **GitOps** - Automated deployments via Flux CD
 ✅ **ARM32 Compatible** - Optimized for Raspberry Pi
+
+## 🚀 CI/CD Pipeline
+
+✅ **GitHub Actions** - Multi-architecture Docker builds (ARM32, ARM64, AMD64)
+✅ **GitHub Container Registry** - Container image storage (ghcr.io)
+✅ **Flux Image Automation** - Automatic deployments when new images are available
+✅ **Semantic Versioning** - Automatic version numbering based on commits
 
 ---
 

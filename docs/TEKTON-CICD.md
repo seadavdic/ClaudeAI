@@ -1,8 +1,22 @@
 # Tekton CI/CD Pipelines
 
-## Overview
+> **⚠️ IMPORTANT: Tekton does NOT support ARM32 (Raspberry Pi)**
+>
+> Tekton container images are not available for ARM32 architecture. When deployed on a Raspberry Pi cluster, pods fail with:
+> ```
+> no match for platform in manifest: not found
+> ```
+>
+> **Recommended Alternative:** Use [GitHub Actions + Flux Image Automation](CICD-PIPELINE.md) instead.
+> This approach builds images on GitHub's infrastructure and uses Flux to automatically deploy new versions.
+
+---
+
+## Overview (Reference Only)
 
 Tekton is a cloud-native CI/CD system that runs directly on Kubernetes. It provides building blocks (Tasks, Pipelines, Triggers) to create automated workflows for building, testing, and deploying applications.
+
+**Note:** The information below is kept for reference purposes. This solution was NOT implemented due to ARM32 incompatibility.
 
 ## Why Tekton?
 
@@ -729,6 +743,7 @@ apps/tekton/
 
 ## Related Documentation
 
+- [CICD-PIPELINE.md](CICD-PIPELINE.md) - **RECOMMENDED: GitHub Actions + Flux Image Automation**
 - [SEALED-SECRETS.md](SEALED-SECRETS.md) - Secure credentials for registry
 - [CERT-MANAGER.md](CERT-MANAGER.md) - TLS for Dashboard
 - [OAUTH2-GITHUB.md](OAUTH2-GITHUB.md) - Protect Dashboard with OAuth2
@@ -736,7 +751,7 @@ apps/tekton/
 
 ---
 
-**Implemented:** 2026-01-10
-**Version:** Tekton Pipelines v0.55.0 + Dashboard v0.43.0
-**Pipelines:** SmartBiz CI/CD (expandable to all applications)
-**ARM32 Compatible:** ✅ Yes (Raspberry Pi optimized)
+**Status:** ❌ NOT IMPLEMENTED (ARM32 incompatible)
+**Reason:** Tekton images do not support ARM32 architecture
+**Alternative:** See [CICD-PIPELINE.md](CICD-PIPELINE.md) for working solution
+**Last Updated:** 2026-01-15
