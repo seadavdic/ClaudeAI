@@ -11,7 +11,8 @@ All project documentation is located in the **[docs/](docs/)** folder:
 - **[INSTALLATION-GUIDE.md](docs/INSTALLATION-GUIDE.md)** - Step-by-step installation instructions
 - **[GRAFANA-DASHBOARDS.md](docs/GRAFANA-DASHBOARDS.md)** - Complete guide to all 6 dashboards
 - **[OAUTH2-GITHUB.md](docs/OAUTH2-GITHUB.md)** - GitHub OAuth authentication setup
-- **[CICD-PIPELINE.md](docs/CICD-PIPELINE.md)** - CI/CD with GitHub Actions + Flux Image Automation ⭐ NEW!
+- **[CICD-PIPELINE.md](docs/CICD-PIPELINE.md)** - CI/CD with GitHub Actions + Flux Image Automation
+- **[NETWORK-POLICIES.md](docs/NETWORK-POLICIES.md)** - Pod-level firewall rules ⭐ NEW!
 - **[CERT-MANAGER.md](docs/CERT-MANAGER.md)** - Automatic SSL/TLS certificate management
 - **[SEALED-SECRETS.md](docs/SEALED-SECRETS.md)** - Secrets management guide
 - **[FLUX-DASHBOARD.md](docs/FLUX-DASHBOARD.md)** - GitOps monitoring dashboard guide
@@ -48,6 +49,7 @@ https://grafana.local:32742
 
 ## 🔐 Security Features
 
+✅ **Network Policies** - Pod-level firewall rules (namespace isolation)
 ✅ **OAuth2 Proxy** - GitHub authentication for service access
 ✅ **Sealed Secrets** - Encrypted credentials in Git (RSA-4096)
 ✅ **cert-manager** - Automatic SSL/TLS certificates for all services

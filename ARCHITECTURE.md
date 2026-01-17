@@ -986,7 +986,7 @@ yourname/ClaudeAI/
   ├─ ✅ cert-manager (IMPLEMENTED - automatic SSL/TLS certificates)
   ├─ ✅ HTTPS Everywhere (IMPLEMENTED - TLS termination + auto HTTP→HTTPS redirect)
   ├─ ✅ OAuth2 Proxy (IMPLEMENTED - GitHub authentication for services)
-  └─ Network Policies (pod-level firewall)
+  └─ ✅ Network Policies (IMPLEMENTED - pod-level firewall rules)
 
   🚀 CI/CD Pipeline
   ├─ ✅ GitHub Actions (IMPLEMENTED - multi-arch image builds)
@@ -1274,6 +1274,60 @@ yourname/ClaudeAI/
   └─ Integrates with GitHub Container Registry
 
   📚 Documentation: docs/CICD-PIPELINE.md
+```
+
+---
+
+## 🔒 Network Policies - Pod-Level Firewall
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    NETWORK SECURITY LAYER                               │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  🔒 Type: Kubernetes NetworkPolicy
+  🛡️  Pattern: Default Deny + Explicit Allow
+  ✅ Status: Active - 8 policies across 3 namespaces
+
+  📊 Implemented Policies:
+
+  SMARTBIZ NAMESPACE (4 policies):
+  ┌────────────────────────────────────────────────────────────────┐
+  │  default-deny-ingress    → Block all incoming traffic         │
+  │  postgres-allow-api      → Only smartbiz-api can reach DB     │
+  │  api-allow-ui-prometheus → UI and Prometheus can reach API    │
+  │  ui-allow-ingress-tunnel → Traefik and Cloudflared can reach UI│
+  └────────────────────────────────────────────────────────────────┘
+
+  RABBITMQ NAMESPACE (2 policies):
+  ┌────────────────────────────────────────────────────────────────┐
+  │  default-deny-ingress              → Block all incoming traffic│
+  │  rabbitmq-allow-pipeline-prometheus → Order-pipeline + Prometheus│
+  └────────────────────────────────────────────────────────────────┘
+
+  ORDER-PIPELINE NAMESPACE (2 policies):
+  ┌────────────────────────────────────────────────────────────────┐
+  │  default-deny-ingress       → Block all incoming traffic      │
+  │  allow-prometheus-scrape    → Prometheus can scrape metrics   │
+  └────────────────────────────────────────────────────────────────┘
+
+  🔐 Security Benefits:
+  ├─ PostgreSQL only accessible from SmartBiz API (not other namespaces)
+  ├─ RabbitMQ only accessible from Order-Pipeline microservices
+  ├─ Default deny blocks all unspecified traffic
+  ├─ Prometheus explicitly allowed for metrics scraping
+  └─ Traefik explicitly allowed for ingress routing
+
+  📁 Files:
+  ┌────────────────────────────────────────────────────────────────┐
+  │  apps/network-policies/                                        │
+  │  ├─ kustomization.yaml          (Flux GitOps config)          │
+  │  ├─ smartbiz-policies.yaml      (4 policies)                  │
+  │  ├─ rabbitmq-policies.yaml      (2 policies)                  │
+  │  └─ order-pipeline-policies.yaml (2 policies)                 │
+  └────────────────────────────────────────────────────────────────┘
+
+  📚 Documentation: docs/NETWORK-POLICIES.md
 ```
 
 ---
