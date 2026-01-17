@@ -1,0 +1,53 @@
+# RabbitMQ Namespace Network Policies
+# Implements pod-level firewall rules for the RabbitMQ message broker
+
+---
+# 1. Default deny all ingress for rabbitmq namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: rabbitmq
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+
+---
+# 2. RabbitMQ: Allow from order-pipeline (AMQP), Prometheus (metrics), and Traefik (management UI)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rabbitmq-allow-pipeline-prometheus
+  namespace: rabbitmq
+spec:
+  podSelector:
+    matchLabels:
+      app: rabbitmq
+  policyTypes:
+  - Ingress
+  ingress:
+  # Allow AMQP connections from order-pipeline namespace
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: order-pipeline
+    ports:
+    - protocol: TCP
+      port: 5672
+  # Allow Prometheus metrics scraping
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: prometheus
+    ports:
+    - protocol: TCP
+      port: 15692
+  # Allow management UI access from Traefik (kube-system)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    ports:
+    - protocol: TCP
+      port: 15672

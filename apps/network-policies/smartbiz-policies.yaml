@@ -1,0 +1,98 @@
+# SmartBiz Namespace Network Policies
+# Implements pod-level firewall rules for the SmartBiz application
+
+---
+# 1. Default deny all ingress for smartbiz namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: smartbiz
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+
+---
+# 2. PostgreSQL: Only allow connections from smartbiz-api
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-allow-api
+  namespace: smartbiz
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: smartbiz-api
+    ports:
+    - protocol: TCP
+      port: 5432
+
+---
+# 3. SmartBiz API: Allow from UI (nginx proxy) and Prometheus for metrics
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-allow-ui-prometheus
+  namespace: smartbiz
+spec:
+  podSelector:
+    matchLabels:
+      app: smartbiz-api
+  policyTypes:
+  - Ingress
+  ingress:
+  # Allow from smartbiz-ui (nginx reverse proxy)
+  - from:
+    - podSelector:
+        matchLabels:
+          app: smartbiz-ui
+    ports:
+    - protocol: TCP
+      port: 8000
+  # Allow from Prometheus namespace for metrics scraping
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: prometheus
+    ports:
+    - protocol: TCP
+      port: 8000
+
+---
+# 4. SmartBiz UI: Allow from Traefik ingress and Cloudflared tunnel
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ui-allow-ingress-tunnel
+  namespace: smartbiz
+spec:
+  podSelector:
+    matchLabels:
+      app: smartbiz-ui
+  policyTypes:
+  - Ingress
+  ingress:
+  # Allow from kube-system (Traefik ingress controller)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    ports:
+    - protocol: TCP
+      port: 80
+  # Allow from cloudflared tunnel in same namespace
+  - from:
+    - podSelector:
+        matchLabels:
+          app: cloudflared-smartbiz
+    ports:
+    - protocol: TCP
+      port: 80

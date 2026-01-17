@@ -1,0 +1,44 @@
+# Order-Pipeline Namespace Network Policies
+# Implements pod-level firewall rules for the order processing microservices
+
+---
+# 1. Default deny all ingress for order-pipeline namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: order-pipeline
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+
+---
+# 2. Allow Prometheus to scrape metrics from all microservices
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: order-pipeline
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: prometheus
+    ports:
+    # order-generator metrics port
+    - protocol: TCP
+      port: 8000
+    # payment-service metrics port
+    - protocol: TCP
+      port: 8001
+    # fulfillment-service metrics port
+    - protocol: TCP
+      port: 8002
+    # notification-service metrics port
+    - protocol: TCP
+      port: 8003
